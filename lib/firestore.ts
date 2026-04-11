@@ -21,17 +21,20 @@ import type { Game, Station, GameSession, Member, InputState } from "@/types";
 // ── Games ────────────────────────────────────────────────────────────────────
 
 export async function getGames(): Promise<Game[]> {
+  // Always use REST API for game listing — the Firebase SDK can hang
+  // indefinitely on cold connections (no built-in timeout), which leaves
+  // the GameGrid stuck in loading state. REST with the API key is fast,
+  // reliable, and works without auth.
   try {
-    const snap = await getDocs(collection(db, "games"));
-    const games = snap.docs
-      .map((d) => ({ id: d.id, ...d.data() } as Game))
-      .filter((g) => g.active !== false);
-    if (games.length > 0) return games;
-  } catch (e) {
-    console.warn("[getGames] SDK failed, falling back to REST:", e);
+    return await getGamesRest();
+  } catch (restErr) {
+    console.warn("[getGames] REST failed, trying SDK:", restErr);
   }
-  // REST API fallback (works without Firebase SDK auth)
-  return getGamesRest();
+  // SDK fallback (slower on first connect but handles auth-gated rules)
+  const snap = await getDocs(collection(db, "games"));
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as Game))
+    .filter((g) => g.active !== false);
 }
 
 async function firestoreVal(v: Record<string, unknown>): Promise<unknown> {
@@ -76,6 +79,24 @@ async function getGamesRest(): Promise<Game[]> {
 }
 
 export async function getGame(gameId: string): Promise<Game | null> {
+  // REST first to avoid SDK cold-start hangs
+  try {
+    const API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+    const PROJECT = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const res = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/games/${gameId}?key=${API_KEY}`
+    );
+    if (res.ok) {
+      const docRaw = await res.json() as { name: string; fields?: Record<string, Record<string, unknown>> };
+      const fields: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(docRaw.fields ?? {})) {
+        fields[k] = await firestoreVal(v);
+      }
+      return { id: gameId, ...fields } as Game;
+    }
+  } catch {
+    // fall through to SDK
+  }
   const snap = await getDoc(doc(db, "games", gameId));
   if (!snap.exists()) return null;
   return { id: snap.id, ...snap.data() } as Game;
