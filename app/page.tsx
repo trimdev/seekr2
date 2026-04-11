@@ -1,65 +1,132 @@
-import Image from "next/image";
+import { HeroSection } from "@/components/landing/HeroSection";
+import { GameGrid } from "@/components/landing/GameGrid";
+import { HowItWorks } from "@/components/landing/HowItWorks";
+import { Container } from "@/components/ui/Container";
+import Link from "next/link";
 
-export default function Home() {
+export const metadata = {
+  title: "Seekr — Outdoor Escape Room a Balatonnál",
+  description: "Rejtvények, valós helyszínek, csapatkaland a szabadban. Fedezd fel a Balaton titkait!",
+};
+
+export default function HomePage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <main>
+      <HeroSection />
+
+      {/* Game type cards */}
+      <Container className="py-10">
+        <p className="text-xs font-semibold tracking-[0.3em] uppercase mb-2" style={{ color: "var(--cyan)" }}>
+          Játéktípusok
+        </p>
+        <h2 className="text-2xl font-black mb-6" style={{ fontFamily: "var(--font-cinzel), serif" }}>
+          Válassz kalandot
+        </h2>
+        <div className="grid grid-cols-2 gap-3 mb-8">
+          {[
+            {
+              label: "Kültéri",
+              badge: "OUTDOOR",
+              desc: "Valódi helyszíneken, a szabadban",
+              color: "rgba(0,200,100,0.15)",
+              border: "rgba(0,200,100,0.3)",
+              accent: "#00c864",
+            },
+            {
+              label: "Kocsmatúra",
+              badge: "PUB TOUR",
+              desc: "Városnézés helyi kocsmákon át",
+              color: "rgba(180,50,30,0.15)",
+              border: "rgba(255,100,50,0.3)",
+              accent: "#ff6b35",
+            },
+          ].map((t) => (
+            <div
+              key={t.label}
+              className="rounded-2xl p-4 flex flex-col gap-2"
+              style={{ background: t.color, border: `1px solid ${t.border}` }}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+              <span
+                className="text-xs font-black px-2 py-0.5 rounded-full self-start"
+                style={{ background: `${t.accent}22`, color: t.accent, border: `1px solid ${t.accent}55`, fontSize: 10, letterSpacing: "0.06em" }}
+              >
+                {t.badge}
+              </span>
+              <p className="font-black text-sm" style={{ color: "var(--text-primary)" }}>{t.label}</p>
+              <p className="text-xs" style={{ color: "var(--text-muted)", lineHeight: 1.4 }}>{t.desc}</p>
+            </div>
+          ))}
+        </div>
+      </Container>
+
+      {/* Games grid */}
+      <div className="mb-12">
+        <Container className="mb-4">
+          <p className="text-xs font-semibold tracking-[0.3em] uppercase mb-1" style={{ color: "var(--cyan)" }}>
+            Elérhető játékok
           </p>
+          <h2 className="text-2xl font-black" style={{ fontFamily: "var(--font-cinzel), serif" }}>
+            Helyszínek
+          </h2>
+        </Container>
+        <GameGrid />
+      </div>
+
+      <HowItWorks />
+
+      {/* Why us */}
+      <Container className="py-10">
+        <p className="text-xs font-semibold tracking-[0.3em] uppercase mb-2" style={{ color: "var(--cyan)" }}>
+          Miért Seekr?
+        </p>
+        <h2 className="text-2xl font-black mb-6" style={{ fontFamily: "var(--font-cinzel), serif" }}>
+          Nem csak játék
+        </h2>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { title: "Valódi helyszínek", desc: "Nem virtuális — minden rejtvény egy igazi helyen vár" },
+            { title: "Csapatélmény", desc: "2–6 fővel, közösen kell megoldani a titkokat" },
+            { title: "Bármikor játszható", desc: "Nincs időbeli korlát, haladj a saját tempódban" },
+            { title: "Magyar fejlesztés", desc: "Helyi történetek, épített örökség, Balaton-feeling" },
+            { title: "App nélkül is", desc: "Kód alapú belépés, nincs telepítés szükséges" },
+            { title: "Ingyenes opciók", desc: "Több játék teljesen ingyenesen is elérhető" },
+          ].map((f) => (
+            <div
+              key={f.title}
+              className="glass rounded-2xl p-4"
+            >
+              <p className="font-black text-sm mb-1" style={{ color: "var(--text-primary)" }}>{f.title}</p>
+              <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>{f.desc}</p>
+            </div>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </Container>
+
+      {/* CTA */}
+      <Container className="py-10 pb-20">
+        <div
+          className="rounded-3xl p-8 text-center"
+          style={{
+            background: "linear-gradient(135deg, rgba(0,212,255,0.08) 0%, rgba(255,107,53,0.06) 100%)",
+            border: "1px solid rgba(0,212,255,0.15)",
+          }}
+        >
+          <h2 className="text-2xl font-black mb-2" style={{ fontFamily: "var(--font-cinzel), serif" }}>
+            Készen állsz?
+          </h2>
+          <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
+            Válassz helyszínt, hívd a csapatod, és kezdődjön a kaland.
+          </p>
+          <div className="flex flex-col gap-3 max-w-xs mx-auto">
+            <Link href="/games" className="btn-primary text-center">
+              Játékok böngészése
+            </Link>
+            <Link href="/login" className="btn-ghost text-center">
+              Csatlakozás kóddal
+            </Link>
+          </div>
         </div>
-      </main>
-    </div>
+      </Container>
+    </main>
   );
 }
