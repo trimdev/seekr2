@@ -130,7 +130,7 @@ export async function createSession(
     hintOpen: false,
     nextHintOpen: false,
     maxMembers: 6,
-    members: [{ uid, name: memberName, joinedAt: serverTimestamp() }],
+    members: [{ uid, name: memberName, joinedAt: new Date().toISOString() }],
     inputState: {},
   } satisfies Omit<GameSession, "id">);
 
@@ -151,7 +151,7 @@ export async function joinSession(
   memberName: string
 ): Promise<void> {
   await updateDoc(doc(db, "game_sessions", sessionId), {
-    members: arrayUnion({ uid, name: memberName, joinedAt: serverTimestamp() }),
+    members: arrayUnion({ uid, name: memberName, joinedAt: new Date().toISOString() }),
   });
 
   await setDoc(doc(db, "users", uid, "active_session", gameId), {

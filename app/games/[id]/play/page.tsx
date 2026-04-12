@@ -391,7 +391,7 @@ export default function PlayPage() {
   }
 
   // ── Game Intro ─────────────────────────────────────────────────────────────
-  if (showIntro && isHost) {
+  if (showIntro && (isHost || !sessionId)) {
     return (
       <div className="min-h-screen flex flex-col py-8" style={{ background: "var(--bg-base)" }}>
       <Container className="flex flex-col flex-1">
