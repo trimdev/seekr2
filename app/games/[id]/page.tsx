@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   ArrowLeft, MapPin, Clock, Users, ChevronRight, Zap, Lock, ShoppingCart
 } from "lucide-react";
@@ -14,6 +15,8 @@ import { getText } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { Container } from "@/components/ui/Container";
 import type { Game } from "@/types";
+
+const GameMap = dynamic(() => import("@/components/game/GameMap"), { ssr: false });
 
 const DIFFICULTY_LABEL: Record<string, string> = {
   easy: "Könnyű",
@@ -168,9 +171,22 @@ export default function GameDetailPage() {
 
         {/* Starting point */}
         {game.startName && (
-          <div className="glass rounded-2xl p-4 mb-8">
+          <div className="glass rounded-2xl p-4 mb-5">
             <p className="text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>INDULÁSI PONT</p>
             <p className="font-medium">{getText(game.startName)}</p>
+          </div>
+        )}
+
+        {/* Map */}
+        {game.startPoint && (
+          <div className="mb-8">
+            <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>TÉRKÉP</p>
+            <GameMap
+              startPoint={game.startPoint as { lat: number; lng: number }}
+              endPoint={game.endPoint as { lat: number; lng: number } | null}
+              startName={getText(game.startName)}
+              endName={getText(game.endName)}
+            />
           </div>
         )}
 

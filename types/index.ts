@@ -20,8 +20,8 @@ export interface Game {
   players?: string;
   image?: string;
   background?: string;
-  startPoint?: { lat: number; lng: number };
-  endPoint?: { lat: number; lng: number };
+  startPoint?: { lat: number; lng: number; name?: string };
+  endPoint?: { lat: number; lng: number; name?: string } | null;
   startName?: I18nText;
   endName?: I18nText;
   active?: boolean;
