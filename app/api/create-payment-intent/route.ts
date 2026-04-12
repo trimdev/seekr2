@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-03-25.dahlia" });
+const stripeKey = process.env.STRIPE_SECRET_KEY;
+if (!stripeKey) {
+  console.error("[create-payment-intent] STRIPE_SECRET_KEY env var is not set");
+}
+const stripe = stripeKey ? new Stripe(stripeKey, { apiVersion: "2026-03-25.dahlia" }) : null;
 
 // Verify Firebase ID token via Identity Toolkit REST (no Admin SDK needed)
 // Note: oauth2.googleapis.com/tokeninfo only works for Google OAuth2 tokens,
@@ -29,6 +33,10 @@ async function verifyToken(idToken: string): Promise<{ uid: string } | null> {
 
 export async function POST(req: NextRequest) {
   try {
+    if (!stripe) {
+      return NextResponse.json({ error: "Stripe is not configured (missing STRIPE_SECRET_KEY)" }, { status: 503 });
+    }
+
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
