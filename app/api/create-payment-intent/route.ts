@@ -68,9 +68,19 @@ export async function POST(req: NextRequest) {
       gameDoc.fields?.price?.doubleValue ??
       gameDoc.fields?.price?.numberValue;
     const price = Number(rawPrice);
+    console.log("[PI] rawPrice:", rawPrice, "→ parsed:", price);
     if (!rawPrice || isNaN(price) || price <= 0) {
-      console.error("[PI] invalid price:", rawPrice, gameDoc.fields?.price);
+      console.error("[PI] invalid price field:", gameDoc.fields?.price);
       return NextResponse.json({ error: "Invalid price" }, { status: 400 });
+    }
+    // Stripe minimum for HUF is 175 Ft
+    const STRIPE_HUF_MIN = 175;
+    if (price < STRIPE_HUF_MIN) {
+      console.error("[PI] price", price, "is below Stripe minimum", STRIPE_HUF_MIN);
+      return NextResponse.json(
+        { error: `Az ár legalább ${STRIPE_HUF_MIN} Ft kell legyen (jelenleg: ${price} Ft). Frissítsd a játék árát az admin felületen.` },
+        { status: 400 }
+      );
     }
 
     // Idempotency key: uid + gameId
