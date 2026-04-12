@@ -97,7 +97,7 @@ export function HeroSection() {
       {/* Gradient overlay */}
       <div aria-hidden style={{
         position: "absolute", inset: 0,
-        background: "linear-gradient(to bottom, rgba(10,14,26,0.1) 0%, transparent 35%, transparent 55%, rgba(10,14,26,1) 100%)",
+        background: "linear-gradient(to bottom, rgba(10,14,26,0.1) 0%, transparent 35%, transparent 55%, rgba(19,28,46,1) 100%)",
       }} />
 
       {/* Particles — shown after reveal */}

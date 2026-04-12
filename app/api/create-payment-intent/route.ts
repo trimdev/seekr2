@@ -3,14 +3,25 @@ import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-03-25.dahlia" });
 
-// Verify Firebase ID token via Google tokeninfo endpoint (no Admin SDK needed)
+// Verify Firebase ID token via Identity Toolkit REST (no Admin SDK needed)
+// Note: oauth2.googleapis.com/tokeninfo only works for Google OAuth2 tokens,
+// NOT for Firebase ID tokens. Firebase JWTs must use accounts:lookup.
 async function verifyToken(idToken: string): Promise<{ uid: string } | null> {
   try {
-    const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+    const res = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      }
+    );
     if (!res.ok) return null;
     const data = await res.json();
-    if (!data.sub) return null;
-    return { uid: data.sub };
+    const uid = data.users?.[0]?.localId;
+    if (!uid) return null;
+    return { uid };
   } catch {
     return null;
   }
