@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, User, Menu, X } from "lucide-react";
+import { LogOut, User, Menu, X, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Container } from "@/components/ui/Container";
 
 const NAV_LINKS = [
@@ -15,6 +16,7 @@ const NAV_LINKS = [
 
 export function TopNav() {
   const { user, logout } = useAuth();
+  const { isAdmin } = useIsAdmin();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -57,6 +59,22 @@ export function TopNav() {
                 {l.label}
               </Link>
             ))}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ml-1"
+                style={{
+                  background: pathname.startsWith("/admin")
+                    ? "rgba(255,107,53,0.18)"
+                    : "rgba(255,107,53,0.10)",
+                  border: "1px solid rgba(255,107,53,0.35)",
+                  color: "var(--orange)",
+                }}
+              >
+                <ShieldCheck size={13} />
+                Admin
+              </Link>
+            )}
           </nav>
 
           {/* Right side */}
@@ -125,6 +143,17 @@ export function TopNav() {
             className="sm:hidden flex flex-col pb-3 gap-1"
             style={{ borderTop: "1px solid var(--border-dim)" }}
           >
+            {isAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-3 rounded-xl text-sm font-bold"
+                style={{ color: "var(--orange)" }}
+              >
+                <ShieldCheck size={16} />
+                Admin panel
+              </Link>
+            )}
             {NAV_LINKS.map((l) => (
               <Link
                 key={l.href}
