@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ChevronDown, MapPin, Users, Clock } from "lucide-react";
@@ -15,6 +15,15 @@ const PARTICLES = Array.from({ length: 12 }, (_, i) => ({
 
 export function HeroSection() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
     const vid = videoRef.current;
@@ -27,15 +36,16 @@ export function HeroSection() {
     vid.addEventListener("timeupdate", onTimeUpdate);
     vid.play().catch(() => {});
     return () => vid.removeEventListener("timeupdate", onTimeUpdate);
-  }, []);
+  }, [isMobile]);
 
   return (
     <section style={{ position: "relative", height: "100svh", minHeight: 600, overflow: "hidden" }}>
 
-      {/* Video */}
+      {/* Video — heronew.mp4 on mobile, hero.mp4 on desktop */}
       <video
         ref={videoRef}
-        src="/hero.mp4"
+        key={isMobile ? "mobile" : "desktop"}
+        src={isMobile ? "/heronew.mp4" : "/hero.mp4"}
         autoPlay muted loop playsInline preload="auto"
         style={{
           position: "absolute", inset: 0,

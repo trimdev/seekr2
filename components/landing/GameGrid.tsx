@@ -7,6 +7,9 @@ import { MapPin, Clock, Users, Lock, AlertCircle } from "lucide-react";
 import { getGames } from "@/lib/firestore";
 import { getText } from "@/lib/utils";
 import { Container } from "@/components/ui/Container";
+import { useAuth } from "@/hooks/useAuth";
+import { db } from "@/lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
 import type { Game } from "@/types";
 
 const DIFFICULTY_LABEL: Record<string, string> = {
@@ -52,10 +55,12 @@ function getImageSrc(game: Game): string {
   return `/game-images/${game.id}.png`;
 }
 
-function GameCard({ game, index }: { game: Game; index: number }) {
+function GameCard({ game, index, owned }: { game: Game; index: number; owned: boolean }) {
   const gradient = getGradient(game);
   const price = game.price;
   const isPub = game.category === "pub";
+  const isPaid = price != null && price > 0;
+  const isLocked = isPaid && !owned;
 
   return (
     <motion.div
@@ -100,8 +105,16 @@ function GameCard({ game, index }: { game: Game; index: number }) {
             }}
           />
 
+          {/* Lock overlay for non-owned paid games */}
+          {isLocked && (
+            <div
+              className="absolute inset-0 z-10 rounded-xl"
+              style={{ background: "rgba(5,8,18,0.45)" }}
+            />
+          )}
+
           {/* Top badges */}
-          <div className="absolute top-2.5 left-2.5 right-2.5 flex items-start justify-between gap-1.5">
+          <div className="absolute top-2.5 left-2.5 right-2.5 flex items-start justify-between gap-1.5 z-20">
             {game.category && (
               <span
                 className="text-xs font-bold px-2 py-0.5 rounded-full backdrop-blur-sm"
@@ -116,23 +129,82 @@ function GameCard({ game, index }: { game: Game; index: number }) {
                 {isPub ? "KOCSMATÚRA" : "KÜLTÉRI"}
               </span>
             )}
-            {game.difficulty && (
-              <span
-                className="text-xs font-black px-2 py-0.5 rounded-full backdrop-blur-sm ml-auto"
-                style={{
-                  background: `${DIFFICULTY_COLOR[game.difficulty]}22`,
-                  color: DIFFICULTY_COLOR[game.difficulty],
-                  border: `1px solid ${DIFFICULTY_COLOR[game.difficulty]}55`,
-                  fontSize: 11,
-                }}
-              >
-                {DIFFICULTY_LABEL[game.difficulty].toUpperCase()}
-              </span>
-            )}
+            <div className="flex items-center gap-1.5 ml-auto">
+              {isLocked && (
+                <span
+                  className="flex items-center gap-1 text-xs font-black px-2 py-0.5 rounded-full backdrop-blur-sm"
+                  style={{
+                    background: "rgba(220,38,38,0.75)",
+                    color: "#fff",
+                    border: "1px solid rgba(255,80,80,0.5)",
+                    fontSize: 11,
+                  }}
+                >
+                  <Lock size={9} />
+                  ZÁROLT
+                </span>
+              )}
+              {owned && (
+                <span
+                  className="flex items-center gap-1 text-xs font-black px-2 py-0.5 rounded-full backdrop-blur-sm"
+                  style={{
+                    background: "rgba(0,180,80,0.75)",
+                    color: "#fff",
+                    border: "1px solid rgba(0,255,100,0.4)",
+                    fontSize: 11,
+                  }}
+                >
+                  ✓ MEGVETT
+                </span>
+              )}
+              {game.difficulty && !isLocked && !owned && (
+                <span
+                  className="text-xs font-black px-2 py-0.5 rounded-full backdrop-blur-sm"
+                  style={{
+                    background: `${DIFFICULTY_COLOR[game.difficulty]}22`,
+                    color: DIFFICULTY_COLOR[game.difficulty],
+                    border: `1px solid ${DIFFICULTY_COLOR[game.difficulty]}55`,
+                    fontSize: 11,
+                  }}
+                >
+                  {DIFFICULTY_LABEL[game.difficulty].toUpperCase()}
+                </span>
+              )}
+              {(isLocked || owned) && game.difficulty && (
+                <span
+                  className="text-xs font-black px-2 py-0.5 rounded-full backdrop-blur-sm"
+                  style={{
+                    background: `${DIFFICULTY_COLOR[game.difficulty]}22`,
+                    color: DIFFICULTY_COLOR[game.difficulty],
+                    border: `1px solid ${DIFFICULTY_COLOR[game.difficulty]}55`,
+                    fontSize: 11,
+                  }}
+                >
+                  {DIFFICULTY_LABEL[game.difficulty].toUpperCase()}
+                </span>
+              )}
+            </div>
           </div>
 
+          {/* Big lock icon centered for locked cards */}
+          {isLocked && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+              <div
+                className="rounded-full flex items-center justify-center"
+                style={{
+                  width: 56, height: 56,
+                  background: "rgba(220,38,38,0.18)",
+                  border: "2px solid rgba(220,38,38,0.45)",
+                  backdropFilter: "blur(6px)",
+                }}
+              >
+                <Lock size={24} style={{ color: "#f87171" }} />
+              </div>
+            </div>
+          )}
+
           {/* Bottom content — overlaid on image */}
-          <div className="absolute bottom-0 left-0 right-0 p-3">
+          <div className="absolute bottom-0 left-0 right-0 p-3 z-20">
             {/* Price pill */}
             {price != null && (
               <div className="mb-2">
@@ -218,9 +290,11 @@ function GameCard({ game, index }: { game: Game; index: number }) {
 }
 
 export function GameGrid({ city }: { city?: string | null } = {}) {
+  const { user } = useAuth();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [ownedIds, setOwnedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     getGames()
@@ -234,6 +308,13 @@ export function GameGrid({ city }: { city?: string | null } = {}) {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!user) { setOwnedIds(new Set()); return; }
+    getDocs(collection(db, "users", user.uid, "owned_games"))
+      .then((snap) => setOwnedIds(new Set(snap.docs.map((d) => d.id))))
+      .catch(() => {});
+  }, [user]);
 
   if (loading) {
     return (
@@ -306,7 +387,7 @@ export function GameGrid({ city }: { city?: string | null } = {}) {
       <Container>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {filtered.map((game, idx) => (
-            <GameCard key={game.id} game={game} index={idx} />
+            <GameCard key={game.id} game={game} index={idx} owned={ownedIds.has(game.id)} />
           ))}
         </div>
       </Container>
@@ -373,7 +454,7 @@ export function GameGrid({ city }: { city?: string | null } = {}) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {cityGames.map((game) => {
                   const idx = globalIndex++;
-                  return <GameCard key={game.id} game={game} index={idx} />;
+                  return <GameCard key={game.id} game={game} index={idx} owned={ownedIds.has(game.id)} />;
                 })}
               </div>
             </Container>

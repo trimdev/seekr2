@@ -21,11 +21,12 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 
 // ── Inner checkout form ──────────────────────────────────────────────────────
 
-function CheckoutForm({ gameId, gameTitle }: { gameId: string; gameTitle: string }) {
+function CheckoutForm({ gameId, price }: { gameId: string; price: number }) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,49 +48,83 @@ function CheckoutForm({ gameId, gameTitle }: { gameId: string; gameTitle: string
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      {/* Section label */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px" style={{ background: "var(--border-dim)" }} />
+        <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-faint)" }}>
+          Fizetési adatok
+        </span>
+        <div className="flex-1 h-px" style={{ background: "var(--border-dim)" }} />
+      </div>
+
+      {/* Embedded Stripe PaymentElement */}
       <div
-        className="glass rounded-2xl p-4"
-        style={{ border: "1px solid var(--border-glow)" }}
+        className="rounded-2xl overflow-hidden"
+        style={{
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border-glow)",
+          padding: "20px 16px",
+          opacity: ready ? 1 : 0,
+          transition: "opacity 0.3s ease",
+          minHeight: ready ? undefined : 160,
+        }}
       >
         <PaymentElement
-          options={{
-            layout: "tabs",
-          }}
+          onReady={() => setReady(true)}
+          options={{ layout: "accordion" }}
         />
       </div>
 
+      {!ready && (
+        <div className="flex items-center justify-center py-8">
+          <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "var(--cyan)" }} />
+        </div>
+      )}
+
       {error && (
         <div
-          className="glass rounded-xl p-3 flex items-center gap-2 text-sm"
-          style={{ borderColor: "var(--orange)", color: "var(--orange)" }}
+          className="rounded-xl p-3 flex items-center gap-2 text-sm"
+          style={{ background: "rgba(255,107,53,0.1)", border: "1px solid rgba(255,107,53,0.3)", color: "var(--orange)" }}
         >
-          <AlertCircle size={16} />
+          <AlertCircle size={15} />
           {error}
         </div>
       )}
 
+      {/* Summary row before pay button */}
+      <div
+        className="rounded-xl p-3 flex items-center justify-between text-sm"
+        style={{ background: "rgba(0,212,255,0.06)", border: "1px solid rgba(0,212,255,0.15)" }}
+      >
+        <span style={{ color: "var(--text-muted)" }}>Fizetendő összeg</span>
+        <span className="font-black text-base" style={{ color: "var(--cyan)" }}>
+          {price.toLocaleString("hu")} Ft
+        </span>
+      </div>
+
       <button
         type="submit"
-        disabled={!stripe || submitting}
+        disabled={!stripe || submitting || !ready}
         className="btn-primary w-full flex items-center justify-center gap-2"
-        style={{ opacity: submitting ? 0.7 : 1 }}
+        style={{ opacity: (!stripe || submitting || !ready) ? 0.6 : 1 }}
       >
         {submitting ? (
           <>
-            <span
-              className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin"
-              style={{ borderColor: "var(--bg-base)" }}
-            />
+            <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "var(--bg-base)" }} />
             Feldolgozás...
           </>
         ) : (
           <>
             <ShoppingCart size={16} />
-            Fizetés megerősítése
+            Fizetés megerősítése — {price.toLocaleString("hu")} Ft
           </>
         )}
       </button>
+
+      <p className="text-center text-xs" style={{ color: "var(--text-faint)" }}>
+        Biztonságos fizetés — Stripe
+      </p>
     </form>
   );
 }
@@ -246,7 +281,7 @@ export default function CheckoutPage() {
             stripe={stripePromise}
             options={{ clientSecret, appearance, locale: "hu" }}
           >
-            <CheckoutForm gameId={id} gameTitle={getText(game.title) ?? ""} />
+            <CheckoutForm gameId={id} price={game.price ?? 0} />
           </Elements>
         )}
       </Container>
