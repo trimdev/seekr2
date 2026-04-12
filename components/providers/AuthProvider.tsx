@@ -62,19 +62,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getRedirectResult(auth)
       .then((result) => {
         if (result?.user) {
-          const dest = sessionStorage.getItem("authRedirect") || "/";
-          sessionStorage.removeItem("authRedirect");
+          // localStorage survives cross-origin redirects; sessionStorage does not
+          const dest = localStorage.getItem("authRedirect") || "/";
+          localStorage.removeItem("authRedirect");
           router.replace(dest.startsWith("/") && !dest.startsWith("//") ? dest : "/");
         }
       })
       .catch((err) => {
-        // Stale/failed redirect state — safe to ignore
         console.warn("[Auth] getRedirectResult (stale):", err?.code);
       });
 
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u || null);
       setLoading(false);
+      // Second chance: if redirect result beat onAuthStateChanged, pick up dest here
+      if (u) {
+        const dest = localStorage.getItem("authRedirect");
+        if (dest) {
+          localStorage.removeItem("authRedirect");
+          router.replace(dest.startsWith("/") && !dest.startsWith("//") ? dest : "/");
+        }
+      }
     });
     return () => unsub();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -95,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const code = (err as { code?: string })?.code;
       if (code === "auth/popup-blocked" || code === "auth/popup-closed-by-user") {
         // Popup blocked (mobile/strict browsers) — fall back to redirect flow
-        sessionStorage.setItem("authRedirect", target);
+        localStorage.setItem("authRedirect", target);
         await signInWithRedirect(auth, provider);
       } else {
         throw err; // Let the login page show the real error code
