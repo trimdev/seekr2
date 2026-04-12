@@ -217,7 +217,7 @@ function GameCard({ game, index }: { game: Game; index: number }) {
   );
 }
 
-export function GameGrid() {
+export function GameGrid({ city }: { city?: string | null } = {}) {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -238,7 +238,7 @@ export function GameGrid() {
   if (loading) {
     return (
       <Container>
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
@@ -289,12 +289,36 @@ export function GameGrid() {
     );
   }
 
+  // If a specific city is requested, show a flat filtered grid
+  if (city) {
+    const filtered = games.filter((g) => getCityKey(g) === city);
+    if (!filtered.length) {
+      return (
+        <Container>
+          <div className="text-center py-16" style={{ color: "var(--text-muted)" }}>
+            <Lock size={36} className="mx-auto mb-3 opacity-30" />
+            <p className="text-sm">Nincs játék ebben a városban.</p>
+          </div>
+        </Container>
+      );
+    }
+    return (
+      <Container>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {filtered.map((game, idx) => (
+            <GameCard key={game.id} game={game} index={idx} />
+          ))}
+        </div>
+      </Container>
+    );
+  }
+
   // Group by city
   const groups = new Map<string, Game[]>();
   for (const game of games) {
-    const city = getCityKey(game);
-    if (!groups.has(city)) groups.set(city, []);
-    groups.get(city)!.push(game);
+    const cityKey = getCityKey(game);
+    if (!groups.has(cityKey)) groups.set(cityKey, []);
+    groups.get(cityKey)!.push(game);
   }
 
   const CITY_ORDER = ["Budapest", "Siófok", "Balatonfüred", "Keszthely", "Tihany"];
@@ -308,10 +332,10 @@ export function GameGrid() {
 
   return (
     <div className="space-y-12">
-      {sortedCities.map((city) => {
-        const cityGames = groups.get(city)!;
+      {sortedCities.map((cityName) => {
+        const cityGames = groups.get(cityName)!;
         return (
-          <section key={city}>
+          <section key={cityName}>
             <Container>
               {/* City header */}
               <div className="flex items-center gap-3 mb-4">
@@ -328,7 +352,7 @@ export function GameGrid() {
                       letterSpacing: "0.08em",
                     }}
                   >
-                    {city}
+                    {cityName}
                   </h2>
                 </div>
                 <div className="flex-1" style={{ height: 1, background: "linear-gradient(to right, rgba(0,212,255,0.3), transparent)" }} />
@@ -346,7 +370,7 @@ export function GameGrid() {
               </div>
 
               {/* 2-column poster grid */}
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {cityGames.map((game) => {
                   const idx = globalIndex++;
                   return <GameCard key={game.id} game={game} index={idx} />;

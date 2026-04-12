@@ -1,5 +1,4 @@
 import { HeroSection } from "@/components/landing/HeroSection";
-import { GameGrid } from "@/components/landing/GameGrid";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Container } from "@/components/ui/Container";
 import Link from "next/link";
@@ -58,19 +57,6 @@ export default function HomePage() {
           ))}
         </div>
       </Container>
-
-      {/* Games grid */}
-      <div className="mb-12">
-        <Container className="mb-4">
-          <p className="text-xs font-semibold tracking-[0.3em] uppercase mb-1" style={{ color: "var(--cyan)" }}>
-            Elérhető játékok
-          </p>
-          <h2 className="text-2xl font-black" style={{ fontFamily: "var(--font-cinzel), serif" }}>
-            Helyszínek
-          </h2>
-        </Container>
-        <GameGrid />
-      </div>
 
       <HowItWorks />
 
