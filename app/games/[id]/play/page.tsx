@@ -9,8 +9,7 @@ import {
   doc, setDoc, updateDoc, onSnapshot, getDoc, serverTimestamp, arrayUnion,
   addDoc, collection,
 } from "firebase/firestore";
-import { signInAnonymously } from "firebase/auth";
-import { db, auth } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { useGame } from "@/hooks/useGame";
 import { useSession } from "@/hooks/useSession";
@@ -80,14 +79,14 @@ export default function PlayPage() {
   const station: Station | undefined = stations[currentStep];
   const stationType = station?.type || "text";
 
-  // ── Ensure we have a UID (anon sign-in for guests) ─────────────────────────
+  // ── Set effective UID from authenticated user ──────────────────────────────
   useEffect(() => {
     if (authLoading) return;
-    if (user) { setEffectiveUid(user.uid); return; }
-    // Auto-sign in anonymously so guests can join sessions
-    signInAnonymously(auth)
-      .then((cred) => setEffectiveUid(cred.user.uid))
-      .catch(() => setEffectiveUid(null));
+    if (user) {
+      setEffectiveUid(user.uid);
+    } else {
+      setEffectiveUid(null);
+    }
   }, [user, authLoading]);
 
   // ── Resolve session role on load ───────────────────────────────────────────
@@ -122,11 +121,15 @@ export default function PlayPage() {
 
   // ── Ownership check (paid games, non-guest, no session join) ──────────────
   useEffect(() => {
-    if (!game || gameLoading) return;
+    if (!game || gameLoading || authLoading) return;
     if (!game.price || game.price <= 0) { setHasAccess(true); return; }
-    // Guests (session join) bypass ownership check
+    // Guests joining via session link bypass ownership check
     if (searchParams.get("session")) { setHasAccess(true); return; }
-    if (!user) { setHasAccess(true); return; } // not logged in → let auth handle it
+    if (!user) {
+      // Paid game, not logged in → redirect to login
+      router.replace(`/login?redirect=/games/${gameId}/play`);
+      return;
+    }
     (async () => {
       const ownedSnap = await getDoc(doc(db, "users", user.uid, "owned_games", gameId as string));
       if (!ownedSnap.exists()) {
@@ -135,7 +138,7 @@ export default function PlayPage() {
         setHasAccess(true);
       }
     })();
-  }, [game, gameLoading, user, gameId, searchParams]);
+  }, [game, gameLoading, authLoading, user, gameId, searchParams, router]);
 
   // ── Sync session → local state ─────────────────────────────────────────────
   useEffect(() => {

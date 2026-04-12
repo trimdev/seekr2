@@ -414,7 +414,7 @@ export default function ProfilePage() {
                           className="btn-primary w-full text-center block"
                           style={{ padding: "10px 0", fontSize: "14px" }}
                         >
-                          Folytatás
+                          Játék folytatása
                         </Link>
                       ) : (
                         <Link

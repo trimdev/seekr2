@@ -1,12 +1,19 @@
 "use client";
 
-import Link from "next/link";
+import { useEffect } from "react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { Container } from "@/components/ui/Container";
-import { ShieldAlert, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { isAdmin, loading } = useIsAdmin();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !isAdmin) {
+      router.replace("/");
+    }
+  }, [loading, isAdmin, router]);
 
   if (loading) {
     return (
@@ -20,27 +27,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   if (!isAdmin) {
-    return (
-      <main className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
-        <Container>
-          <div className="glass flex flex-col items-center gap-6 p-10 text-center max-w-sm mx-auto">
-            <ShieldAlert size={48} style={{ color: "var(--orange)" }} />
-            <h1
-              className="text-2xl font-black tracking-wide"
-              style={{ fontFamily: "var(--font-cinzel), Cinzel, serif", color: "var(--text-primary)" }}
-            >
-              Nincs hozzáférés
-            </h1>
-            <p style={{ color: "var(--text-muted)" }}>
-              Ez az oldal csak adminisztrátorok számára érhető el.
-            </p>
-            <Link href="/" className="btn-ghost text-sm">
-              ← Vissza a főoldalra
-            </Link>
-          </div>
-        </Container>
-      </main>
-    );
+    return null;
   }
 
   return <>{children}</>;

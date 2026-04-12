@@ -34,10 +34,13 @@ export default function GameDetailPage() {
     getGame(id as string).then(setGame).finally(() => setLoading(false));
   }, [id]);
 
-  // Check ownership when user + game are ready
+  // Check ownership when game is ready
   useEffect(() => {
-    if (!user || !id || !game) return;
+    if (!id || !game) return;
+    // Free game: always accessible
     if (!game.price || game.price === 0) { setOwned(true); return; }
+    // Paid game but user not logged in: mark as not owned to show login CTA
+    if (!user) { setOwned(false); return; }
     getDoc(doc(db, "users", user.uid, "owned_games", id as string))
       .then((snap) => setOwned(snap.exists()))
       .catch(() => setOwned(false));
@@ -191,7 +194,7 @@ export default function GameDetailPage() {
                   href={`/games/${id}/play`}
                   className="btn-primary w-full text-center flex items-center justify-center gap-2"
                 >
-                  {owned && game.price && game.price > 0 ? "Játék indítása" : "Indítás"}
+                  Játék indítása
                   <ChevronRight size={16} />
                 </Link>
               )}
@@ -220,7 +223,7 @@ export default function GameDetailPage() {
               )}
 
               {/* Ownership check in progress */}
-              {game.price != null && game.price > 0 && owned === null && user && (
+              {game.price != null && game.price > 0 && owned === null && (
                 <div
                   className="w-full h-11 rounded-xl flex items-center justify-center"
                   style={{ background: "var(--cyan-dim)" }}

@@ -109,7 +109,7 @@ function SuccessContent() {
               )}
               {gameId && (
                 <Link
-                  href={`/games/${gameId}`}
+                  href={`/games/${gameId}/play`}
                   className="btn-primary mt-2 w-full text-center"
                 >
                   Játék megnyitása

@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowLeft, User, Mail, Lock, Eye, EyeOff, Globe, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const { signInWithGoogle, registerEmail } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/";
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,7 +28,7 @@ export default function RegisterPage() {
     setLoading(true);
     setError("");
     try {
-      await registerEmail(email, password, name);
+      await registerEmail(email, password, name, redirectTo);
     } catch (err: unknown) {
       const msg = (err as { code?: string }).code;
       if (msg === "auth/email-already-in-use") {
@@ -40,7 +43,7 @@ export default function RegisterPage() {
 
   const handleGoogle = async () => {
     setLoading(true);
-    try { await signInWithGoogle(); } catch { setError("Google bejelentkezés sikertelen."); } finally { setLoading(false); }
+    try { await signInWithGoogle(redirectTo); } catch { setError("Google bejelentkezés sikertelen."); } finally { setLoading(false); }
   };
 
   return (
@@ -109,5 +112,19 @@ export default function RegisterPage() {
       </motion.div>
     </Container>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
+          <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "var(--cyan)" }} />
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
   );
 }

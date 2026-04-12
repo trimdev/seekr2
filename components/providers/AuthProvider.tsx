@@ -27,9 +27,9 @@ import { useRouter, usePathname } from "next/navigation";
 type AuthCtx = {
   user: User | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
-  signInEmail: (email: string, password: string) => Promise<void>;
-  registerEmail: (email: string, password: string, name: string) => Promise<void>;
+  signInWithGoogle: (redirect?: string) => Promise<void>;
+  signInEmail: (email: string, password: string, redirect?: string) => Promise<void>;
+  registerEmail: (email: string, password: string, name: string, redirect?: string) => Promise<void>;
   signInAnon: () => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -70,32 +70,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsub();
   }, []);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (redirect?: string) => {
     const provider = new GoogleAuthProvider();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (provider as any).setCustomParameters({ prompt: "select_account consent" });
-    const safePath =
-      pathname?.startsWith("/") && !pathname.startsWith("//") ? pathname : "/";
-    localStorage.setItem("lastPath", safePath);
+    const target =
+      redirect && redirect.startsWith("/") && !redirect.startsWith("//")
+        ? redirect
+        : pathname?.startsWith("/") && !pathname.startsWith("//")
+        ? pathname
+        : "/";
+    localStorage.setItem("lastPath", target);
     await setPersistence(auth, browserLocalPersistence);
     const res = await signInWithPopup(auth, provider);
     if (res.user) {
       const stored = localStorage.getItem("lastPath") || "/";
       localStorage.removeItem("lastPath");
-      const redirect = stored.startsWith("/") && !stored.startsWith("//") ? stored : "/";
-      router.replace(redirect);
+      const dest = stored.startsWith("/") && !stored.startsWith("//") ? stored : "/";
+      router.replace(dest);
     }
   };
 
-  const signInEmail = async (email: string, password: string) => {
+  const signInEmail = async (email: string, password: string, redirect?: string) => {
     await signInWithEmailAndPassword(auth, email, password);
-    router.replace("/");
+    const target = redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/";
+    router.replace(target);
   };
 
-  const registerEmail = async (email: string, password: string, name: string) => {
+  const registerEmail = async (email: string, password: string, name: string, redirect?: string) => {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName: name });
-    router.replace("/");
+    const target = redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/";
+    router.replace(target);
   };
 
   const signInAnon = async () => {

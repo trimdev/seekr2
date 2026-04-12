@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, Globe, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 
-export default function LoginPage() {
+function LoginForm() {
   const { signInWithGoogle, signInEmail, resetPassword } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -24,7 +27,7 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      await signInEmail(email, password);
+      await signInEmail(email, password, redirectTo);
     } catch {
       setError("Hibás e-mail cím vagy jelszó.");
     } finally {
@@ -50,7 +53,7 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(redirectTo);
     } catch {
       setError("Google bejelentkezés sikertelen.");
     } finally {
@@ -138,7 +141,7 @@ export default function LoginPage() {
           {error && <p className="text-xs" style={{ color: "#ef4444" }}>{error}</p>}
           {resetSent && (
             <p className="text-xs" style={{ color: "var(--cyan)" }}>
-              📩 Visszaállító e-mail elküldve!
+              Visszaállító e-mail elküldve!
             </p>
           )}
 
@@ -165,5 +168,19 @@ export default function LoginPage() {
       </motion.div>
     </Container>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
+          <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "var(--cyan)" }} />
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
