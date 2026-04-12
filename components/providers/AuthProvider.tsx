@@ -53,6 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    // Set persistence once at init so individual sign-in functions don't
+    // need to await it — that await breaks the iOS Safari user-gesture
+    // chain and causes signInWithPopup to be blocked.
+    setPersistence(auth, browserLocalPersistence).catch(() => {});
+
     // Drain any stale redirect result (clears bad state from IndexedDB)
     getRedirectResult(auth)
       .then((result) => {
@@ -79,7 +84,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const target = redirect && redirect.startsWith("/") && !redirect.startsWith("//")
       ? redirect
       : "/";
-    await setPersistence(auth, browserLocalPersistence);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
 
@@ -100,14 +104,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInEmail = async (email: string, password: string, redirect?: string) => {
-    await setPersistence(auth, browserLocalPersistence);
     await signInWithEmailAndPassword(auth, email, password);
     const target = redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/";
     router.replace(target);
   };
 
   const registerEmail = async (email: string, password: string, name: string, redirect?: string) => {
-    await setPersistence(auth, browserLocalPersistence);
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName: name });
     const target = redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/";

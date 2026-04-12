@@ -34,7 +34,6 @@ export function HeroSection() {
     if (revealed) return;
 
     document.body.style.overflow = "hidden";
-    document.body.style.touchAction = "none";
 
     let fired = false;
     let touchStartY = 0;
@@ -46,7 +45,6 @@ export function HeroSection() {
       // Unlock after the animation completes (~750ms)
       setTimeout(() => {
         document.body.style.overflow = "";
-        document.body.style.touchAction = "";
       }, 750);
     };
 
@@ -73,7 +71,6 @@ export function HeroSection() {
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);
       document.body.style.overflow = "";
-      document.body.style.touchAction = "";
     };
   }, [revealed]);
 
