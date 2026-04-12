@@ -252,11 +252,12 @@ export default function CheckoutPage() {
       spacingUnit: "4px",
     },
     rules: {
-      ".Input": { border: "1px solid rgba(232,240,254,0.13)", background: "#131c2e" },
-      ".Input:focus": { border: "1px solid rgba(0,212,255,0.45)", boxShadow: "0 0 0 3px rgba(0,212,255,0.1)" },
-      ".Label": { color: "#9db4cc", fontSize: "12px", fontWeight: "600", letterSpacing: "0.05em", textTransform: "uppercase" },
-      ".Tab": { border: "1px solid rgba(232,240,254,0.1)", background: "#131c2e" },
-      ".Tab--selected": { border: "1px solid rgba(0,212,255,0.4)", background: "rgba(0,212,255,0.08)" },
+      ".Input": { backgroundColor: "#131c2e", borderColor: "rgba(232,240,254,0.13)" },
+      ".Input:focus": { borderColor: "rgba(0,212,255,0.45)", boxShadow: "0 0 0 3px rgba(0,212,255,0.1)" },
+      ".Label": { color: "#9db4cc", fontSize: "12px", fontWeight: "600" },
+      ".Tab": { backgroundColor: "#131c2e", borderColor: "rgba(232,240,254,0.1)" },
+      ".Tab--selected": { backgroundColor: "rgba(0,212,255,0.08)", borderColor: "rgba(0,212,255,0.4)" },
+      ".Tab:hover": { backgroundColor: "rgba(0,212,255,0.05)" },
     },
   };
 
