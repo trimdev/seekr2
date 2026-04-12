@@ -9,7 +9,7 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { ArrowLeft, ShoppingCart, AlertCircle } from "lucide-react";
+import { ArrowLeft, ShoppingCart, AlertCircle, Lock, MapPin, Clock, Users, CheckCircle2 } from "lucide-react";
 import { getGame } from "@/lib/firestore";
 import { getText } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,7 +19,7 @@ import type { Game } from "@/types";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
-// ── Inner checkout form ──────────────────────────────────────────────────────
+// ── Embedded payment form ────────────────────────────────────────────────────
 
 function CheckoutForm({ gameId, price }: { gameId: string; price: number }) {
   const stripe = useStripe();
@@ -33,14 +33,12 @@ function CheckoutForm({ gameId, price }: { gameId: string; price: number }) {
     if (!stripe || !elements) return;
     setSubmitting(true);
     setError(null);
-
     const { error: stripeError } = await stripe.confirmPayment({
       elements,
       confirmParams: {
         return_url: `${window.location.origin}/checkout/success?gameId=${gameId}`,
       },
     });
-
     if (stripeError) {
       setError(stripeError.message ?? "Fizetési hiba történt.");
       setSubmitting(false);
@@ -48,88 +46,131 @@ function CheckoutForm({ gameId, price }: { gameId: string; price: number }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-      {/* Section label */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-px" style={{ background: "var(--border-dim)" }} />
-        <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-faint)" }}>
-          Fizetési adatok
-        </span>
-        <div className="flex-1 h-px" style={{ background: "var(--border-dim)" }} />
-      </div>
-
-      {/* Embedded Stripe PaymentElement */}
-      <div
-        className="rounded-2xl overflow-hidden"
-        style={{
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border-glow)",
-          padding: "20px 16px",
-          opacity: ready ? 1 : 0,
-          transition: "opacity 0.3s ease",
-          minHeight: ready ? undefined : 160,
-        }}
-      >
-        <PaymentElement
-          onReady={() => setReady(true)}
-          options={{ layout: "accordion" }}
-        />
-      </div>
-
-      {!ready && (
-        <div className="flex items-center justify-center py-8">
-          <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "var(--cyan)" }} />
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {/* Stripe PaymentElement */}
+      <div style={{ position: "relative", minHeight: ready ? undefined : 180 }}>
+        <div
+          style={{
+            borderRadius: 16,
+            overflow: "hidden",
+            background: "var(--bg-surface)",
+            border: "1px solid var(--border-dim)",
+            padding: "18px 16px",
+            opacity: ready ? 1 : 0,
+            transition: "opacity 0.35s ease",
+          }}
+        >
+          <PaymentElement
+            onReady={() => setReady(true)}
+            options={{ layout: "accordion" }}
+          />
         </div>
-      )}
+        {!ready && (
+          <div
+            style={{
+              position: "absolute", inset: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              borderRadius: 16,
+              background: "var(--bg-surface)",
+              border: "1px solid var(--border-dim)",
+            }}
+          >
+            <div
+              className="animate-spin"
+              style={{
+                width: 24, height: 24,
+                borderRadius: "50%",
+                border: "2px solid rgba(0,212,255,0.2)",
+                borderTopColor: "var(--cyan)",
+              }}
+            />
+          </div>
+        )}
+      </div>
 
+      {/* Error */}
       {error && (
         <div
-          className="rounded-xl p-3 flex items-center gap-2 text-sm"
-          style={{ background: "rgba(255,107,53,0.1)", border: "1px solid rgba(255,107,53,0.3)", color: "var(--orange)" }}
+          style={{
+            borderRadius: 12, padding: "12px 14px",
+            display: "flex", alignItems: "center", gap: 8,
+            background: "rgba(255,107,53,0.1)",
+            border: "1px solid rgba(255,107,53,0.3)",
+            color: "var(--orange)", fontSize: 14,
+          }}
         >
-          <AlertCircle size={15} />
+          <AlertCircle size={15} style={{ flexShrink: 0 }} />
           {error}
         </div>
       )}
 
-      {/* Summary row before pay button */}
+      {/* Total row */}
       <div
-        className="rounded-xl p-3 flex items-center justify-between text-sm"
-        style={{ background: "rgba(0,212,255,0.06)", border: "1px solid rgba(0,212,255,0.15)" }}
+        style={{
+          borderRadius: 12, padding: "12px 16px",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          background: "rgba(0,212,255,0.06)",
+          border: "1px solid rgba(0,212,255,0.18)",
+        }}
       >
-        <span style={{ color: "var(--text-muted)" }}>Fizetendő összeg</span>
-        <span className="font-black text-base" style={{ color: "var(--cyan)" }}>
+        <span style={{ fontSize: 14, color: "var(--text-muted)" }}>Fizetendő összeg</span>
+        <span style={{ fontSize: 20, fontWeight: 900, color: "var(--cyan)" }}>
           {price.toLocaleString("hu")} Ft
         </span>
       </div>
 
+      {/* Pay button */}
       <button
         type="submit"
         disabled={!stripe || submitting || !ready}
-        className="btn-primary w-full flex items-center justify-center gap-2"
-        style={{ opacity: (!stripe || submitting || !ready) ? 0.6 : 1 }}
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+          width: "100%", minHeight: 54,
+          borderRadius: 9999,
+          background: (!stripe || submitting || !ready)
+            ? "rgba(0,212,255,0.3)"
+            : "linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)",
+          color: "#020c18",
+          fontWeight: 800, fontSize: 15,
+          border: "none", cursor: (!stripe || submitting || !ready) ? "not-allowed" : "pointer",
+          boxShadow: (!stripe || submitting || !ready)
+            ? "none"
+            : "0 0 24px rgba(0,212,255,0.4), 0 4px 12px rgba(0,0,0,0.3)",
+          transition: "all 0.2s",
+        }}
       >
         {submitting ? (
           <>
-            <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "var(--bg-base)" }} />
+            <span
+              className="animate-spin"
+              style={{
+                width: 16, height: 16, borderRadius: "50%",
+                border: "2px solid rgba(2,12,24,0.3)",
+                borderTopColor: "#020c18", flexShrink: 0,
+              }}
+            />
             Feldolgozás...
           </>
         ) : (
           <>
-            <ShoppingCart size={16} />
-            Fizetés megerősítése — {price.toLocaleString("hu")} Ft
+            <ShoppingCart size={17} />
+            Fizetés — {price.toLocaleString("hu")} Ft
           </>
         )}
       </button>
 
-      <p className="text-center text-xs" style={{ color: "var(--text-faint)" }}>
-        Biztonságos fizetés — Stripe
-      </p>
+      {/* Trust line */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+        <Lock size={11} style={{ color: "var(--text-faint)" }} />
+        <span style={{ fontSize: 11, color: "var(--text-faint)", letterSpacing: "0.02em" }}>
+          Biztonságos fizetés — Stripe titkosítással
+        </span>
+      </div>
     </form>
   );
 }
 
-// ── Main checkout page ───────────────────────────────────────────────────────
+// ── Main page ────────────────────────────────────────────────────────────────
 
 export default function CheckoutPage() {
   const { id } = useParams<{ id: string }>();
@@ -155,10 +196,7 @@ export default function CheckoutPage() {
       const token = await auth.currentUser?.getIdToken();
       const res = await fetch("/api/create-payment-intent", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ gameId: id }),
       });
       const data = await res.json();
@@ -172,9 +210,7 @@ export default function CheckoutPage() {
   }, [user, id]);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace(`/login?redirect=/checkout/${id}`);
-    }
+    if (!authLoading && !user) router.replace(`/login?redirect=/checkout/${id}`);
   }, [authLoading, user, id, router]);
 
   useEffect(() => {
@@ -187,100 +223,185 @@ export default function CheckoutPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
-        <div
-          className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
-          style={{ borderColor: "var(--cyan)" }}
-        />
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-base)" }}>
+        <div className="animate-spin" style={{ width: 32, height: 32, borderRadius: "50%", border: "2px solid rgba(0,212,255,0.2)", borderTopColor: "var(--cyan)" }} />
       </div>
     );
   }
 
   if (!game) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: "var(--bg-base)" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-base)" }}>
         <p style={{ color: "var(--text-muted)" }}>A játék nem található.</p>
       </div>
     );
   }
 
+  const coverSrc = game.image || game.background || `/game-images/${id}.png`;
+
   const appearance = {
     theme: "night" as const,
     variables: {
       colorPrimary: "#00d4ff",
-      colorBackground: "#0f1628",
-      colorText: "#e8f0fe",
+      colorBackground: "#1c2844",
+      colorText: "#f0f6ff",
+      colorTextSecondary: "#9db4cc",
       colorDanger: "#ff6b35",
       borderRadius: "12px",
       fontFamily: "DM Sans, Helvetica Neue, system-ui, sans-serif",
+      spacingUnit: "4px",
+    },
+    rules: {
+      ".Input": { border: "1px solid rgba(232,240,254,0.13)", background: "#131c2e" },
+      ".Input:focus": { border: "1px solid rgba(0,212,255,0.45)", boxShadow: "0 0 0 3px rgba(0,212,255,0.1)" },
+      ".Label": { color: "#9db4cc", fontSize: "12px", fontWeight: "600", letterSpacing: "0.05em", textTransform: "uppercase" },
+      ".Tab": { border: "1px solid rgba(232,240,254,0.1)", background: "#131c2e" },
+      ".Tab--selected": { border: "1px solid rgba(0,212,255,0.4)", background: "rgba(0,212,255,0.08)" },
     },
   };
 
   return (
-    <div className="min-h-screen py-8" style={{ background: "var(--bg-base)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-base)", paddingBottom: 48 }}>
       <Container>
-        {/* Back button */}
+        {/* Back */}
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 mb-6 text-sm"
-          style={{ color: "var(--text-muted)" }}
+          style={{
+            display: "flex", alignItems: "center", gap: 6,
+            marginTop: 24, marginBottom: 24,
+            color: "var(--text-muted)", fontSize: 14,
+            background: "none", border: "none", cursor: "pointer", padding: 0,
+          }}
         >
           <ArrowLeft size={16} />
           Vissza
         </button>
 
-        {/* Game summary card */}
+        {/* Header label */}
+        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.35em", textTransform: "uppercase", color: "var(--cyan)", marginBottom: 8 }}>
+          Vásárlás
+        </p>
+
+        {/* Game card — cover + details */}
         <div
-          className="glass rounded-2xl p-5 mb-6"
-          style={{ borderColor: "var(--border-glow)" }}
+          style={{
+            borderRadius: 20,
+            overflow: "hidden",
+            border: "1px solid var(--border-dim)",
+            marginBottom: 24,
+            background: "var(--bg-surface)",
+          }}
         >
-          <p className="text-xs font-semibold mb-1" style={{ color: "var(--cyan)" }}>
-            VÁSÁRLÁS
-          </p>
-          <h1
-            className="text-2xl font-black mb-1"
-            style={{ fontFamily: "var(--font-cinzel), serif" }}
-          >
-            {getText(game.title)}
-          </h1>
-          {game.city && (
-            <p className="text-sm mb-3" style={{ color: "var(--text-muted)" }}>
-              {getText(game.city)}
-            </p>
-          )}
-          <div className="flex items-center justify-between pt-3" style={{ borderTop: "1px solid var(--border-dim)" }}>
-            <span className="text-sm" style={{ color: "var(--text-muted)" }}>Ár</span>
-            <span className="text-xl font-black" style={{ color: "var(--cyan)" }}>
-              {game.price != null ? `${game.price.toLocaleString("hu")} Ft` : "—"}
-            </span>
+          {/* Cover image */}
+          <div style={{ position: "relative", height: 160, background: "var(--bg-base)" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={coverSrc}
+              alt={getText(game.title) ?? ""}
+              style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%" }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 30%, rgba(28,40,68,0.95) 100%)" }} />
+            {/* Price badge */}
+            {game.price != null && (
+              <div
+                style={{
+                  position: "absolute", top: 12, right: 12,
+                  padding: "4px 12px", borderRadius: 9999,
+                  background: "rgba(255,107,53,0.85)",
+                  color: "#fff", fontSize: 13, fontWeight: 800,
+                  border: "1px solid rgba(255,140,80,0.5)",
+                }}
+              >
+                {game.price === 0 ? "Ingyenes" : `${game.price.toLocaleString("hu")} Ft`}
+              </div>
+            )}
+          </div>
+
+          {/* Info */}
+          <div style={{ padding: "16px 18px 18px" }}>
+            <h1
+              style={{
+                fontFamily: "var(--font-cinzel), serif",
+                fontSize: "clamp(18px, 5vw, 24px)",
+                fontWeight: 900, color: "var(--text-primary)",
+                margin: "0 0 6px",
+              }}
+            >
+              {getText(game.title)}
+            </h1>
+
+            {/* Meta row */}
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 14 }}>
+              {game.city && (
+                <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, color: "var(--text-muted)" }}>
+                  <MapPin size={12} style={{ color: "var(--cyan)" }} />
+                  {getText(game.city)}
+                </span>
+              )}
+              {game.duration && (
+                <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, color: "var(--text-muted)" }}>
+                  <Clock size={12} style={{ color: "var(--cyan)" }} />
+                  {game.duration}
+                </span>
+              )}
+              {game.players && (
+                <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, color: "var(--text-muted)" }}>
+                  <Users size={12} style={{ color: "var(--cyan)" }} />
+                  {game.players}
+                </span>
+              )}
+            </div>
+
+            {/* What you get */}
+            <div style={{ borderTop: "1px solid var(--border-dim)", paddingTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+              {[
+                "Korlátlan lejátszás a csapattal",
+                "Valós idejű szinkron minden eszközön",
+                "Azonnali hozzáférés vásárlás után",
+              ].map((item) => (
+                <div key={item} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <CheckCircle2 size={14} style={{ color: "var(--cyan)", flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{item}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Payment section */}
+        {/* Payment intent error */}
         {piError && (
           <div
-            className="glass rounded-xl p-4 mb-4 flex items-center gap-2 text-sm"
-            style={{ borderColor: "var(--orange)", color: "var(--orange)" }}
+            style={{
+              borderRadius: 12, padding: "12px 14px",
+              display: "flex", alignItems: "center", gap: 8,
+              background: "rgba(255,107,53,0.1)",
+              border: "1px solid rgba(255,107,53,0.3)",
+              color: "var(--orange)", fontSize: 14,
+              marginBottom: 16,
+            }}
           >
-            <AlertCircle size={16} />
+            <AlertCircle size={15} style={{ flexShrink: 0 }} />
             {piError}
+            <button
+              onClick={createPaymentIntent}
+              style={{ marginLeft: "auto", fontSize: 13, fontWeight: 700, color: "var(--orange)", background: "none", border: "none", cursor: "pointer" }}
+            >
+              Újra
+            </button>
           </div>
         )}
 
+        {/* Loading PI */}
         {piLoading && (
-          <div className="flex items-center justify-center py-12">
-            <div
-              className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
-              style={{ borderColor: "var(--cyan)" }}
-            />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 0" }}>
+            <div className="animate-spin" style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid rgba(0,212,255,0.2)", borderTopColor: "var(--cyan)" }} />
           </div>
         )}
 
+        {/* Stripe Elements */}
         {clientSecret && (
-          <Elements
-            stripe={stripePromise}
-            options={{ clientSecret, appearance, locale: "hu" }}
-          >
+          <Elements stripe={stripePromise} options={{ clientSecret, appearance, locale: "hu" }}>
             <CheckoutForm gameId={id} price={game.price ?? 0} />
           </Elements>
         )}

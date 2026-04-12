@@ -81,6 +81,31 @@ export function TopNav() {
           <div className="flex items-center gap-2">
             {user ? (
               <>
+                {/* Mobile: compact greeting pill */}
+                <Link
+                  href="/profile"
+                  className="sm:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-full flex-shrink-0"
+                  style={{
+                    background: "rgba(0,212,255,0.1)",
+                    border: "1px solid rgba(0,212,255,0.22)",
+                    maxWidth: 140,
+                  }}
+                >
+                  <span
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
+                    style={{ background: "var(--cyan)", color: "#020c18" }}
+                  >
+                    {(user.displayName || user.email || "?").charAt(0).toUpperCase()}
+                  </span>
+                  <span
+                    className="text-xs font-semibold truncate"
+                    style={{ color: "var(--cyan)", maxWidth: 80 }}
+                  >
+                    Szia, {(user.displayName || user.email || "").split(" ")[0].split("@")[0]}!
+                  </span>
+                </Link>
+
+                {/* Desktop: full name link */}
                 <Link
                   href="/profile"
                   className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium flex-shrink-0 transition-colors"
@@ -90,10 +115,9 @@ export function TopNav() {
                     color: pathname === "/profile" ? "var(--cyan)" : "var(--text-muted)",
                   }}
                 >
-                  {/* Avatar circle */}
                   <span
                     className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
-                    style={{ background: "var(--cyan)", color: "#000" }}
+                    style={{ background: "var(--cyan)", color: "#020c18" }}
                   >
                     {(user.displayName || user.email || "?").charAt(0).toUpperCase()}
                   </span>
@@ -101,6 +125,7 @@ export function TopNav() {
                     {user.displayName || user.email}
                   </span>
                 </Link>
+
                 <button
                   onClick={logout}
                   className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"

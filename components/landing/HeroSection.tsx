@@ -88,7 +88,7 @@ export function HeroSection() {
           width: "100%", height: "100%",
           objectFit: "cover",
           objectPosition: "center center",
-          filter: "brightness(0.45) saturate(1.1)",
+          filter: "brightness(0.72) saturate(1.1)",
           willChange: "transform",
           transform: "translateZ(0)",
         }}

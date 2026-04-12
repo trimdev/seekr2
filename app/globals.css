@@ -2,15 +2,17 @@
 
 /* ── CSS Variables ──────────────────────────────────────────────────────────── */
 :root {
-  --bg-base:      #0a0e1a;
-  --bg-surface:   #0f1628;
-  --bg-glass:     rgba(15, 22, 40, 0.7);
+  --bg-base:      #131c2e;
+  --bg-surface:   #1c2844;
+  --bg-glass:     rgba(22, 33, 60, 0.78);
   --cyan:         #00d4ff;
   --orange:       #ff6b35;
   --green-dark:   #1a3a2a;
-  --text-primary: #e8f0fe;
-  --text-muted:   #8899bb;
-  --border-dim:   rgba(232, 240, 254, 0.08);
+  --text-primary: #f0f6ff;
+  --text-muted:   #9db4cc;
+  --text-faint:   #6b85a8;
+  --border-dim:   rgba(232, 240, 254, 0.13);
+  --border-glow:  rgba(0, 212, 255, 0.2);
   --font-cinzel:  "Cinzel", serif;
 }
 
