@@ -3,6 +3,7 @@ import { Cinzel, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { TopNav } from "@/components/nav/TopNav";
+import { Footer } from "@/components/nav/Footer";
 
 const cinzel = Cinzel({
   variable: "--font-cinzel",
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <TopNav />
           {children}
+          <Footer />
         </AuthProvider>
       </body>
     </html>
