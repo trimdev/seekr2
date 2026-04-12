@@ -9,6 +9,7 @@ import {
   addDoc,
   deleteDoc,
   doc,
+  updateDoc,
   serverTimestamp,
   orderBy,
   query,
@@ -24,6 +25,23 @@ export default function AdminGamesPage() {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [bulkPricing, setBulkPricing] = useState(false);
+
+  async function handleSetAllPrices() {
+    if (!confirm("Minden játék árát 8900 Ft-ra állítod. Folytatod?")) return;
+    setBulkPricing(true);
+    try {
+      const snap = await getDocs(collection(db, "games"));
+      await Promise.all(snap.docs.map((d) => updateDoc(doc(db, "games", d.id), { price: 8900 })));
+      await loadGames();
+      alert(`✓ ${snap.docs.length} játék ára 8900 Ft-ra frissítve.`);
+    } catch (e) {
+      console.error(e);
+      alert("Hiba az árak frissítésekor.");
+    } finally {
+      setBulkPricing(false);
+    }
+  }
 
   async function loadGames() {
     setLoading(true);
@@ -91,8 +109,16 @@ export default function AdminGamesPage() {
           </div>
         </div>
 
-        {/* Create button */}
-        <div className="flex justify-end mb-6">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+          <button
+            onClick={handleSetAllPrices}
+            disabled={bulkPricing}
+            className="btn-ghost text-sm"
+            style={{ borderColor: "rgba(255,107,53,0.4)", color: "var(--orange)" }}
+          >
+            {bulkPricing ? "Frissítés..." : "Összes ár → 8900 Ft"}
+          </button>
           <button
             onClick={handleCreate}
             disabled={creating}
