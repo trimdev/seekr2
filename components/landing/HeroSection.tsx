@@ -29,14 +29,52 @@ export function HeroSection() {
     videoRef.current?.play().catch(() => {});
   }, [isMobile]);
 
-  // One-way reveal at 60px scroll
+  // Lock scroll until reveal, then unlock after animation
   useEffect(() => {
     if (revealed) return;
-    const onScroll = () => {
-      if (window.scrollY >= 60) setRevealed(true);
+
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+
+    let fired = false;
+    let touchStartY = 0;
+
+    const triggerReveal = () => {
+      if (fired) return;
+      fired = true;
+      setRevealed(true);
+      // Unlock after the animation completes (~750ms)
+      setTimeout(() => {
+        document.body.style.overflow = "";
+        document.body.style.touchAction = "";
+      }, 750);
     };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (e.deltaY > 0) triggerReveal();
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0].clientY;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      if (touchStartY - e.touches[0].clientY > 8) triggerReveal();
+    };
+
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
+    };
   }, [revealed]);
 
   return (
