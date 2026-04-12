@@ -89,6 +89,21 @@ export default function PlayPage() {
     }
   }, [user, authLoading]);
 
+  // ── Load saved progress for solo play (no session) ────────────────────────
+  useEffect(() => {
+    if (!user || !gameId || sessionId) return; // only solo play
+    getProgress(user.uid, gameId as string).then((step) => {
+      if (step > 0) setCurrentStep(step);
+    });
+  }, [user, gameId, sessionId]);
+
+  // ── Guard: clamp currentStep to valid range ───────────────────────────────
+  useEffect(() => {
+    if (stations.length > 0 && currentStep >= stations.length) {
+      setCurrentStep(stations.length - 1);
+    }
+  }, [stations.length, currentStep]);
+
   // ── Resolve session role on load ───────────────────────────────────────────
   useEffect(() => {
     if (!effectiveUid || !gameId) return;
@@ -296,10 +311,19 @@ export default function PlayPage() {
     );
   }
 
-  if (!game || stations.length === 0) {
+  if (!game) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "var(--bg-base)" }}>
         <p style={{ color: "var(--text-muted)" }}>A játék nem elérhető.</p>
+        <button onClick={() => router.back()} className="btn-ghost">Vissza</button>
+      </div>
+    );
+  }
+
+  if (!gameLoading && stations.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "var(--bg-base)" }}>
+        <p style={{ color: "var(--text-muted)" }}>Nincs állomás ehhez a játékhoz.</p>
         <button onClick={() => router.back()} className="btn-ghost">Vissza</button>
       </div>
     );
@@ -442,7 +466,12 @@ export default function PlayPage() {
       >
       <Container className="flex items-center gap-3 py-3">
         <button
-          onClick={() => router.back()}
+          onClick={async () => {
+            if (!sessionId && user?.uid) {
+              await saveProgress(user.uid, gameId as string, currentStep);
+            }
+            router.replace(`/games/${gameId}`);
+          }}
           className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{ background: "rgba(255,255,255,0.06)" }}
         >
