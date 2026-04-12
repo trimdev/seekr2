@@ -11,6 +11,7 @@ import {
   onAuthStateChanged,
   User,
   GoogleAuthProvider,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signInWithEmailAndPassword,
@@ -52,21 +53,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Handle the return from Google redirect sign-in
-    setPersistence(auth, browserLocalPersistence).catch(() => {}).finally(() => {
-      getRedirectResult(auth)
-        .then((result) => {
-          if (result?.user) {
-            const dest = sessionStorage.getItem("authRedirect") || "/";
-            sessionStorage.removeItem("authRedirect");
-            router.replace(dest.startsWith("/") && !dest.startsWith("//") ? dest : "/");
-          }
-        })
-        .catch((err) => {
-          // Log actual Firebase error code for debugging
-          console.error("[Auth] getRedirectResult error:", err?.code, err?.message);
-        });
-    });
+    // Drain any stale redirect result (clears bad state from IndexedDB)
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          const dest = sessionStorage.getItem("authRedirect") || "/";
+          sessionStorage.removeItem("authRedirect");
+          router.replace(dest.startsWith("/") && !dest.startsWith("//") ? dest : "/");
+        }
+      })
+      .catch((err) => {
+        // Stale/failed redirect state — safe to ignore
+        console.warn("[Auth] getRedirectResult (stale):", err?.code);
+      });
 
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u || null);
@@ -80,12 +79,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const target = redirect && redirect.startsWith("/") && !redirect.startsWith("//")
       ? redirect
       : "/";
-    sessionStorage.setItem("authRedirect", target);
     await setPersistence(auth, browserLocalPersistence);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
-    // signInWithRedirect navigates away — no popup, works on all browsers/mobile
-    await signInWithRedirect(auth, provider);
+
+    try {
+      // Popup is faster and simpler — preferred method now that authDomain is clean
+      const result = await signInWithPopup(auth, provider);
+      if (result.user) router.replace(target);
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === "auth/popup-blocked" || code === "auth/popup-closed-by-user") {
+        // Popup blocked (mobile/strict browsers) — fall back to redirect flow
+        sessionStorage.setItem("authRedirect", target);
+        await signInWithRedirect(auth, provider);
+      } else {
+        throw err; // Let the login page show the real error code
+      }
+    }
   };
 
   const signInEmail = async (email: string, password: string, redirect?: string) => {
