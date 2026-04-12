@@ -11,10 +11,10 @@ import {
   onAuthStateChanged,
   User,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInAnonymously,
   setPersistence,
   browserLocalPersistence,
   sendPasswordResetEmail,
@@ -22,7 +22,7 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 type AuthCtx = {
   user: User | null;
@@ -30,7 +30,6 @@ type AuthCtx = {
   signInWithGoogle: (redirect?: string) => Promise<void>;
   signInEmail: (email: string, password: string, redirect?: string) => Promise<void>;
   registerEmail: (email: string, password: string, name: string, redirect?: string) => Promise<void>;
-  signInAnon: () => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 };
@@ -41,7 +40,6 @@ const AuthContext = createContext<AuthCtx>({
   signInWithGoogle: async () => {},
   signInEmail: async () => {},
   registerEmail: async () => {},
-  signInAnon: async () => {},
   logout: async () => {},
   resetPassword: async () => {},
 });
@@ -52,60 +50,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
-    (async () => {
-      try {
-        await setPersistence(auth, browserLocalPersistence);
-      } catch {}
-    })();
-  }, []);
+    // Handle the return from Google redirect sign-in
+    setPersistence(auth, browserLocalPersistence).catch(() => {}).finally(() => {
+      getRedirectResult(auth)
+        .then((result) => {
+          if (result?.user) {
+            const dest = sessionStorage.getItem("authRedirect") || "/";
+            sessionStorage.removeItem("authRedirect");
+            router.replace(dest.startsWith("/") && !dest.startsWith("//") ? dest : "/");
+          }
+        })
+        .catch((err) => {
+          // Log actual Firebase error code for debugging
+          console.error("[Auth] getRedirectResult error:", err?.code, err?.message);
+        });
+    });
 
-  useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u && !u.isAnonymous ? u : null);
+      setUser(u || null);
       setLoading(false);
     });
     return () => unsub();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const signInWithGoogle = async (redirect?: string) => {
-    const provider = new GoogleAuthProvider();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (provider as any).setCustomParameters({ prompt: "select_account consent" });
-    const target =
-      redirect && redirect.startsWith("/") && !redirect.startsWith("//")
-        ? redirect
-        : pathname?.startsWith("/") && !pathname.startsWith("//")
-        ? pathname
-        : "/";
-    localStorage.setItem("lastPath", target);
+    const target = redirect && redirect.startsWith("/") && !redirect.startsWith("//")
+      ? redirect
+      : "/";
+    sessionStorage.setItem("authRedirect", target);
     await setPersistence(auth, browserLocalPersistence);
-    const res = await signInWithPopup(auth, provider);
-    if (res.user) {
-      const stored = localStorage.getItem("lastPath") || "/";
-      localStorage.removeItem("lastPath");
-      const dest = stored.startsWith("/") && !stored.startsWith("//") ? stored : "/";
-      router.replace(dest);
-    }
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+    // signInWithRedirect navigates away — no popup, works on all browsers/mobile
+    await signInWithRedirect(auth, provider);
   };
 
   const signInEmail = async (email: string, password: string, redirect?: string) => {
+    await setPersistence(auth, browserLocalPersistence);
     await signInWithEmailAndPassword(auth, email, password);
     const target = redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/";
     router.replace(target);
   };
 
   const registerEmail = async (email: string, password: string, name: string, redirect?: string) => {
+    await setPersistence(auth, browserLocalPersistence);
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName: name });
     const target = redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/";
     router.replace(target);
-  };
-
-  const signInAnon = async () => {
-    await signInAnonymously(auth);
   };
 
   const logout = async () => {
@@ -125,7 +120,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithGoogle,
         signInEmail,
         registerEmail,
-        signInAnon,
         logout,
         resetPassword,
       }}

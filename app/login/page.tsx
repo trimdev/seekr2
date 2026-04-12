@@ -54,9 +54,15 @@ function LoginForm() {
     setError("");
     try {
       await signInWithGoogle(redirectTo);
-    } catch {
-      setError("Google bejelentkezés sikertelen.");
-    } finally {
+      // signInWithRedirect navigates away — setLoading stays true intentionally
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code ?? "";
+      const msg = code === "auth/unauthorized-domain"
+        ? "Ez a domain nincs engedélyezve Firebase-ben. Ellenőrizd az Authorized domains beállítást."
+        : code
+        ? `Hiba: ${code}`
+        : "Google bejelentkezés sikertelen.";
+      setError(msg);
       setLoading(false);
     }
   };
