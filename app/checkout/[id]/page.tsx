@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -19,9 +19,77 @@ import type { Game } from "@/types";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
+// ── Field component ──────────────────────────────────────────────────────────
+
+function Field({
+  label,
+  required,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+  disabled,
+}: {
+  label: string;
+  required?: boolean;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.03em" }}>
+        {label}{required && <span style={{ color: "var(--cyan)", marginLeft: 2 }}>*</span>}
+      </label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        required={required}
+        style={{
+          background: "#131c2e",
+          border: "1px solid rgba(232,240,254,0.13)",
+          borderRadius: 12,
+          padding: "11px 14px",
+          fontSize: 15,
+          color: "var(--text-primary)",
+          outline: "none",
+          width: "100%",
+          boxSizing: "border-box",
+          transition: "border-color 0.15s",
+          opacity: disabled ? 0.6 : 1,
+        }}
+        onFocus={(e) => { e.target.style.borderColor = "rgba(0,212,255,0.45)"; e.target.style.boxShadow = "0 0 0 3px rgba(0,212,255,0.1)"; }}
+        onBlur={(e) => { e.target.style.borderColor = "rgba(232,240,254,0.13)"; e.target.style.boxShadow = "none"; }}
+      />
+    </div>
+  );
+}
+
 // ── Embedded payment form ────────────────────────────────────────────────────
 
-function CheckoutForm({ gameId, price }: { gameId: string; price: number }) {
+interface BillingInfo {
+  name: string;
+  email: string;
+  address: string;
+  taxNumber: string;
+}
+
+function CheckoutForm({
+  gameId,
+  price,
+  billing,
+  onBillingChange,
+}: {
+  gameId: string;
+  price: number;
+  billing: BillingInfo;
+  onBillingChange: (b: BillingInfo) => void;
+}) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
@@ -31,12 +99,23 @@ function CheckoutForm({ gameId, price }: { gameId: string; price: number }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stripe || !elements) return;
+    if (!billing.name.trim() || !billing.email.trim() || !billing.address.trim()) {
+      setError("Kérjük, töltsd ki az összes kötelező mezőt.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     const { error: stripeError } = await stripe.confirmPayment({
       elements,
       confirmParams: {
         return_url: `${window.location.origin}/checkout/success?gameId=${gameId}`,
+        payment_method_data: {
+          billing_details: {
+            name: billing.name.trim(),
+            email: billing.email.trim(),
+            address: { line1: billing.address.trim() },
+          },
+        },
       },
     });
     if (stripeError) {
@@ -45,8 +124,56 @@ function CheckoutForm({ gameId, price }: { gameId: string; price: number }) {
     }
   };
 
+  const set = (key: keyof BillingInfo) => (v: string) =>
+    onBillingChange({ ...billing, [key]: v });
+
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      {/* Billing fields */}
+      <div
+        style={{
+          borderRadius: 16,
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border-dim)",
+          padding: "18px 16px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+        }}
+      >
+        <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.25em", textTransform: "uppercase", color: "var(--cyan)", marginBottom: 2 }}>
+          Számlázási adatok
+        </p>
+        <Field
+          label="Teljes név"
+          required
+          value={billing.name}
+          onChange={set("name")}
+          placeholder="Kovács János"
+        />
+        <Field
+          label="E-mail cím"
+          required
+          type="email"
+          value={billing.email}
+          onChange={set("email")}
+          placeholder="pelda@email.com"
+        />
+        <Field
+          label="Cím"
+          required
+          value={billing.address}
+          onChange={set("address")}
+          placeholder="1234 Budapest, Példa utca 1."
+        />
+        <Field
+          label="Adószám (opcionális)"
+          value={billing.taxNumber}
+          onChange={set("taxNumber")}
+          placeholder="12345678-1-23"
+        />
+      </div>
+
       {/* Stripe PaymentElement */}
       <div style={{ position: "relative", minHeight: ready ? undefined : 180 }}>
         <div
@@ -182,11 +309,27 @@ export default function CheckoutPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [piError, setPiError] = useState<string | null>(null);
   const [piLoading, setPiLoading] = useState(false);
+  const piStarted = useRef(false);
 
+  const [billing, setBilling] = useState<BillingInfo>({
+    name: "",
+    email: "",
+    address: "",
+    taxNumber: "",
+  });
+
+  // Load game
   useEffect(() => {
     if (!id) return;
     getGame(id).then(setGame).finally(() => setGameLoading(false));
   }, [id]);
+
+  // Pre-fill email once user is known
+  useEffect(() => {
+    if (user?.email && !billing.email) {
+      setBilling((b) => ({ ...b, email: user.email! }));
+    }
+  }, [user]);
 
   const createPaymentIntent = useCallback(async () => {
     if (!user || !id) return;
@@ -209,19 +352,21 @@ export default function CheckoutPage() {
     }
   }, [user, id]);
 
+  // Redirect if not logged in
   useEffect(() => {
     if (!authLoading && !user) router.replace(`/login?redirect=/checkout/${id}`);
   }, [authLoading, user, id, router]);
 
+  // Start PI as soon as user is ready — don't wait for game load
   useEffect(() => {
-    if (user && game && game.price && game.price > 0 && !clientSecret && !piLoading) {
-      createPaymentIntent();
-    }
-  }, [user, game, clientSecret, piLoading, createPaymentIntent]);
+    if (!user || authLoading || piStarted.current) return;
+    piStarted.current = true;
+    createPaymentIntent();
+  }, [user, authLoading, createPaymentIntent]);
 
   const loading = gameLoading || authLoading;
 
-  if (loading) {
+  if (loading && !game) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-base)" }}>
         <div className="animate-spin" style={{ width: 32, height: 32, borderRadius: "50%", border: "2px solid rgba(0,212,255,0.2)", borderTopColor: "var(--cyan)" }} />
@@ -229,15 +374,7 @@ export default function CheckoutPage() {
     );
   }
 
-  if (!game) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-base)" }}>
-        <p style={{ color: "var(--text-muted)" }}>A játék nem található.</p>
-      </div>
-    );
-  }
-
-  const coverSrc = game.image || game.background || `/game-images/${id}.jpg`;
+  const coverSrc = game?.image || game?.background || `/game-images/${id}.jpg`;
 
   const appearance = {
     theme: "night" as const,
@@ -284,98 +421,100 @@ export default function CheckoutPage() {
         </p>
 
         {/* Game card — cover + details */}
-        <div
-          style={{
-            borderRadius: 20,
-            overflow: "hidden",
-            border: "1px solid var(--border-dim)",
-            marginBottom: 24,
-            background: "var(--bg-surface)",
-          }}
-        >
-          {/* Cover image */}
-          <div style={{ position: "relative", height: 160, background: "var(--bg-base)" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={coverSrc}
-              alt={getText(game.title) ?? ""}
-              style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%" }}
-              onError={(e) => {
-                const el = e.target as HTMLImageElement;
-                if (!el.src.includes("/game-images/") || el.src.endsWith(".jpg")) {
-                  el.src = `/game-images/${id}.png`;
-                } else {
-                  el.style.display = "none";
-                }
-              }}
-            />
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 30%, rgba(28,40,68,0.95) 100%)" }} />
-            {/* Price badge */}
-            {game.price != null && (
-              <div
+        {game && (
+          <div
+            style={{
+              borderRadius: 20,
+              overflow: "hidden",
+              border: "1px solid var(--border-dim)",
+              marginBottom: 24,
+              background: "var(--bg-surface)",
+            }}
+          >
+            {/* Cover image */}
+            <div style={{ position: "relative", height: 160, background: "var(--bg-base)" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={coverSrc}
+                alt={getText(game.title) ?? ""}
+                style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%" }}
+                onError={(e) => {
+                  const el = e.target as HTMLImageElement;
+                  if (!el.src.includes("/game-images/") || el.src.endsWith(".jpg")) {
+                    el.src = `/game-images/${id}.png`;
+                  } else {
+                    el.style.display = "none";
+                  }
+                }}
+              />
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 30%, rgba(28,40,68,0.95) 100%)" }} />
+              {/* Price badge */}
+              {game.price != null && (
+                <div
+                  style={{
+                    position: "absolute", top: 12, right: 12,
+                    padding: "4px 12px", borderRadius: 9999,
+                    background: "rgba(255,107,53,0.85)",
+                    color: "#fff", fontSize: 13, fontWeight: 800,
+                    border: "1px solid rgba(255,140,80,0.5)",
+                  }}
+                >
+                  {game.price === 0 ? "Ingyenes" : `${game.price.toLocaleString("hu")} Ft`}
+                </div>
+              )}
+            </div>
+
+            {/* Info */}
+            <div style={{ padding: "16px 18px 18px" }}>
+              <h1
                 style={{
-                  position: "absolute", top: 12, right: 12,
-                  padding: "4px 12px", borderRadius: 9999,
-                  background: "rgba(255,107,53,0.85)",
-                  color: "#fff", fontSize: 13, fontWeight: 800,
-                  border: "1px solid rgba(255,140,80,0.5)",
+                  fontFamily: "var(--font-cinzel), serif",
+                  fontSize: "clamp(18px, 5vw, 24px)",
+                  fontWeight: 900, color: "var(--text-primary)",
+                  margin: "0 0 6px",
                 }}
               >
-                {game.price === 0 ? "Ingyenes" : `${game.price.toLocaleString("hu")} Ft`}
+                {getText(game.title)}
+              </h1>
+
+              {/* Meta row */}
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 14 }}>
+                {game.city && (
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, color: "var(--text-muted)" }}>
+                    <MapPin size={12} style={{ color: "var(--cyan)" }} />
+                    {getText(game.city)}
+                  </span>
+                )}
+                {game.duration && (
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, color: "var(--text-muted)" }}>
+                    <Clock size={12} style={{ color: "var(--cyan)" }} />
+                    {game.duration}
+                  </span>
+                )}
+                {game.players && (
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, color: "var(--text-muted)" }}>
+                    <Users size={12} style={{ color: "var(--cyan)" }} />
+                    {game.players}
+                  </span>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Info */}
-          <div style={{ padding: "16px 18px 18px" }}>
-            <h1
-              style={{
-                fontFamily: "var(--font-cinzel), serif",
-                fontSize: "clamp(18px, 5vw, 24px)",
-                fontWeight: 900, color: "var(--text-primary)",
-                margin: "0 0 6px",
-              }}
-            >
-              {getText(game.title)}
-            </h1>
-
-            {/* Meta row */}
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 14 }}>
-              {game.city && (
-                <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, color: "var(--text-muted)" }}>
-                  <MapPin size={12} style={{ color: "var(--cyan)" }} />
-                  {getText(game.city)}
-                </span>
-              )}
-              {game.duration && (
-                <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, color: "var(--text-muted)" }}>
-                  <Clock size={12} style={{ color: "var(--cyan)" }} />
-                  {game.duration}
-                </span>
-              )}
-              {game.players && (
-                <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, color: "var(--text-muted)" }}>
-                  <Users size={12} style={{ color: "var(--cyan)" }} />
-                  {game.players}
-                </span>
-              )}
-            </div>
-
-            {/* What you get */}
-            <div style={{ borderTop: "1px solid var(--border-dim)", paddingTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-              {[
-                "Korlátlan lejátszás a csapattal",
-                "Valós idejű szinkron minden eszközön",
-                "Azonnali hozzáférés vásárlás után",
-              ].map((item) => (
-                <div key={item} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <CheckCircle2 size={14} style={{ color: "var(--cyan)", flexShrink: 0 }} />
-                  <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{item}</span>
-                </div>
-              ))}
+              {/* What you get */}
+              <div style={{ borderTop: "1px solid var(--border-dim)", paddingTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                {[
+                  "Korlátlan lejátszás a csapattal",
+                  "Valós idejű szinkron minden eszközön",
+                  "Azonnali hozzáférés vásárlás után",
+                ].map((item) => (
+                  <div key={item} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <CheckCircle2 size={14} style={{ color: "var(--cyan)", flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{item}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Payment intent error */}
         {piError && (
@@ -410,7 +549,12 @@ export default function CheckoutPage() {
         {/* Stripe Elements */}
         {clientSecret && (
           <Elements stripe={stripePromise} options={{ clientSecret, appearance, locale: "hu" }}>
-            <CheckoutForm gameId={id} price={game.price ?? 0} />
+            <CheckoutForm
+              gameId={id}
+              price={game?.price ?? 0}
+              billing={billing}
+              onBillingChange={setBilling}
+            />
           </Elements>
         )}
       </Container>
