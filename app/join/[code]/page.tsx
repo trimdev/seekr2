@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Loader2, Search } from "lucide-react";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 export default function JoinByCodePage() {
   const { code } = useParams<{ code: string }>();
@@ -19,32 +17,13 @@ export default function JoinByCodePage() {
 
     (async () => {
       try {
-        // Query by stored code field (single-field, no composite index needed)
-        const q = query(
-          collection(db, "game_sessions"),
-          where("code", "==", normalized)
-        );
-        const snap = await getDocs(q);
-        const matched = snap.docs.find((d) => d.data().status !== "ended");
+        const res = await fetch(`/api/find-session?code=${normalized}`);
+        const data = await res.json();
 
-        if (matched) {
-          const gameId = matched.data().gameId;
-          router.replace(`/games/${gameId}/play?session=${matched.id}`);
-          return;
-        }
-
-        // Fallback: prefix scan for older sessions without code field
-        const allSnap = await getDocs(collection(db, "game_sessions"));
-        const match = allSnap.docs.find(
-          (d) =>
-            d.id.slice(0, 6).toUpperCase() === normalized &&
-            d.data().status !== "ended"
-        );
-        if (match) {
-          const gameId = match.data().gameId;
-          router.replace(`/games/${gameId}/play?session=${match.id}`);
+        if (res.ok && data.gameId && data.sessionId) {
+          router.replace(`/games/${data.gameId}/play?session=${data.sessionId}`);
         } else {
-          setError("Nem találtunk aktív szobát ezzel a kóddal.");
+          setError(data.error ?? "Nem találtunk aktív szobát ezzel a kóddal.");
           setSearching(false);
         }
       } catch {
