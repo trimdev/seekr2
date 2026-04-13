@@ -85,7 +85,10 @@ export default function PlayPage() {
     if (user) {
       setEffectiveUid(user.uid);
     } else {
-      setEffectiveUid(null);
+      // Not logged in — redirect to login, preserving session param so they
+      // land back here (and get the JoinPrompt) after authenticating
+      const dest = `/games/${gameId}/play${searchParams.get("session") ? `?session=${searchParams.get("session")}` : ""}`;
+      router.replace(`/login?redirect=${encodeURIComponent(dest)}`);
     }
   }, [user, authLoading]);
 

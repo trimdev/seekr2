@@ -65,6 +65,7 @@ export interface GameSession {
   gameId: string;
   createdBy: string;
   createdAt?: unknown;
+  code?: string;
   status: "active" | "ended" | "paused";
   currentStep: number;
   started: boolean;

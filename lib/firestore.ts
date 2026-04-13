@@ -134,6 +134,9 @@ export async function createSession(
     inputState: {},
   } satisfies Omit<GameSession, "id">);
 
+  // Store the 6-char code so /join/[code] can query by it instead of scanning all docs
+  await updateDoc(ref, { code: ref.id.slice(0, 6).toUpperCase() });
+
   await setDoc(doc(db, "users", uid, "active_session", gameId), {
     sessionId: ref.id,
     gameId,
