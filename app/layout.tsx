@@ -42,6 +42,15 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="hu" className={`${cinzel.variable} ${dmSans.variable}`}>
+      <head>
+        {/* Warm up Stripe connections so the PaymentElement loads faster */}
+        <link rel="preconnect" href="https://js.stripe.com" />
+        <link rel="preconnect" href="https://hooks.stripe.com" />
+        <link rel="preconnect" href="https://m.stripe.com" />
+        <link rel="preconnect" href="https://m.stripe.network" />
+        <link rel="dns-prefetch" href="https://js.stripe.com" />
+        <link rel="dns-prefetch" href="https://hooks.stripe.com" />
+      </head>
       <body style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}>
         <AuthProvider>
           <TopNav />

@@ -174,17 +174,37 @@ function CheckoutForm({
         />
       </div>
 
-      {/* Stripe PaymentElement */}
-      <div style={{ position: "relative", minHeight: ready ? undefined : 180 }}>
+      {/* Stripe PaymentElement — always mounted so Stripe initialises immediately */}
+      <div style={{ position: "relative", borderRadius: 16, overflow: "hidden" }}>
+        {/* Skeleton overlay — fades out once Stripe signals ready */}
+        {!ready && (
+          <div
+            style={{
+              position: "absolute", inset: 0, zIndex: 2,
+              borderRadius: 16,
+              background: "var(--bg-surface)",
+              border: "1px solid var(--border-dim)",
+              padding: "18px 16px",
+              display: "flex", flexDirection: "column", gap: 10,
+            }}
+          >
+            <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.25em", textTransform: "uppercase", color: "var(--cyan)", marginBottom: 2 }}>
+              Fizetési mód
+            </p>
+            {[68, 45, 80].map((w, i) => (
+              <div key={i} style={{ height: 13, borderRadius: 6, width: `${w}%`, background: "rgba(232,240,254,0.07)" }} />
+            ))}
+          </div>
+        )}
+        {/* PaymentElement is always in the DOM so Stripe can initialize in background */}
         <div
           style={{
             borderRadius: 16,
-            overflow: "hidden",
             background: "var(--bg-surface)",
             border: "1px solid var(--border-dim)",
             padding: "18px 16px",
             opacity: ready ? 1 : 0,
-            transition: "opacity 0.35s ease",
+            transition: "opacity 0.3s ease",
           }}
         >
           <PaymentElement
@@ -192,27 +212,6 @@ function CheckoutForm({
             options={{ layout: "accordion" }}
           />
         </div>
-        {!ready && (
-          <div
-            style={{
-              position: "absolute", inset: 0,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              borderRadius: 16,
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-dim)",
-            }}
-          >
-            <div
-              className="animate-spin"
-              style={{
-                width: 24, height: 24,
-                borderRadius: "50%",
-                border: "2px solid rgba(0,212,255,0.2)",
-                borderTopColor: "var(--cyan)",
-              }}
-            />
-          </div>
-        )}
       </div>
 
       {/* Error */}
