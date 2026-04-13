@@ -19,16 +19,15 @@ export default function JoinByCodePage() {
 
     (async () => {
       try {
-        // First try querying by the stored code field (fast, indexed)
+        // Query by stored code field (single-field, no composite index needed)
         const q = query(
           collection(db, "game_sessions"),
-          where("code", "==", normalized),
-          where("status", "!=", "ended")
+          where("code", "==", normalized)
         );
         const snap = await getDocs(q);
+        const matched = snap.docs.find((d) => d.data().status !== "ended");
 
-        if (!snap.empty) {
-          const matched = snap.docs[0];
+        if (matched) {
           const gameId = matched.data().gameId;
           router.replace(`/games/${gameId}/play?session=${matched.id}`);
           return;
