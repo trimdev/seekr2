@@ -237,7 +237,7 @@ export default function CheckoutPage() {
     );
   }
 
-  const coverSrc = game.image || game.background || `/game-images/${id}.png`;
+  const coverSrc = game.image || game.background || `/game-images/${id}.jpg`;
 
   const appearance = {
     theme: "night" as const,
@@ -300,7 +300,14 @@ export default function CheckoutPage() {
               src={coverSrc}
               alt={getText(game.title) ?? ""}
               style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%" }}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              onError={(e) => {
+                const el = e.target as HTMLImageElement;
+                if (!el.src.includes("/game-images/") || el.src.endsWith(".jpg")) {
+                  el.src = `/game-images/${id}.png`;
+                } else {
+                  el.style.display = "none";
+                }
+              }}
             />
             <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 30%, rgba(28,40,68,0.95) 100%)" }} />
             {/* Price badge */}
