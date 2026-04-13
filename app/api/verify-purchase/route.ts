@@ -29,19 +29,23 @@ async function firestorePatch(
   projectId: string,
   apiKey: string,
   path: string,
-  fields: Record<string, unknown>
+  fields: Record<string, unknown>,
+  authToken?: string
 ): Promise<void> {
-  await fetch(
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+  const res = await fetch(
     `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}?key=${apiKey}`,
-    {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fields }),
-    }
+    { method: "PATCH", headers, body: JSON.stringify({ fields }) }
   );
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Firestore PATCH ${path} → ${res.status}: ${body}`);
+  }
 }
 
 export async function POST(req: NextRequest) {
+  try {
   const authHeader = req.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -90,13 +94,13 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString();
   const uid = decoded.uid;
 
-  // Write owned game record
+  // Write owned game record (auth token required — Firestore rules guard users/{uid}/*)
   await firestorePatch(projectId, apiKey, `users/${uid}/owned_games/${gameId}`, {
     purchasedAt: { stringValue: now },
     confirmedBy: { stringValue: "stripe" },
     paymentIntentId: { stringValue: pi.id },
     amountReceived: { integerValue: String(pi.amount_received) },
-  });
+  }, idToken);
 
   // Write purchase record
   await firestorePatch(projectId, apiKey, `purchases/${pi.id}`, {
@@ -106,7 +110,12 @@ export async function POST(req: NextRequest) {
     confirmedBy: { stringValue: "stripe" },
     paymentIntentId: { stringValue: pi.id },
     amountReceived: { integerValue: String(pi.amount_received) },
-  });
+  }, idToken);
 
   return NextResponse.json({ ok: true });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[verify-purchase] 500:", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }
