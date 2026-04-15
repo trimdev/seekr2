@@ -55,6 +55,7 @@ export default function PlayPage() {
   // ── game play state ────────────────────────────────────────────────────────
   const [currentStep, setCurrentStep] = useState(0);
   const [solved, setSolved] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [hintOpen, setHintOpen] = useState(false);
   const [nextHintOpen, setNextHintOpen] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
@@ -239,6 +240,20 @@ export default function PlayPage() {
     }
   }, [isHost, station, stationType, inputValue, lockDigits, orderItems, matchSelections, qrValue, sessionId, effectiveUid, gameId, currentStep]);
 
+  // Auto-advance after correct answer (host only)
+  useEffect(() => {
+    if (!solved || !isHost) return;
+    setCountdown(4);
+    const interval = setInterval(() => {
+      setCountdown((c) => {
+        if (c === null || c <= 1) { clearInterval(interval); return null; }
+        return c - 1;
+      });
+    }, 1000);
+    const timer = setTimeout(() => { nextStation(); }, 4000);
+    return () => { clearInterval(interval); clearTimeout(timer); setCountdown(null); };
+  }, [solved, isHost]);
+
   // ── Advance to next station (host only) ────────────────────────────────────
   const nextStation = useCallback(async () => {
     const next = currentStep + 1;
@@ -251,6 +266,7 @@ export default function PlayPage() {
     }
     setCurrentStep(next);
     setSolved(false);
+    setCountdown(null);
     setHintOpen(false);
     setNextHintOpen(false);
     setConfetti(false);
@@ -362,6 +378,33 @@ export default function PlayPage() {
   // ── Needs join prompt ──────────────────────────────────────────────────────
   if (needsJoin) {
     return <JoinPrompt sessionId={sessionId!} onJoin={handleJoin} />;
+  }
+
+  // ── Guest waiting for host to start ───────────────────────────────────────
+  if (!isHost && sessionId && session && !session.started) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: "var(--bg-base)" }}>
+        <div className="w-full max-w-sm text-center">
+          <div className="glass-cyan rounded-2xl p-8 mb-6">
+            <div className="text-4xl mb-4">⏳</div>
+            <h2 className="text-xl font-black mb-2" style={{ fontFamily: "var(--font-cinzel), serif" }}>
+              Várakozás a gazdára…
+            </h2>
+            <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
+              A csapatvezető hamarosan elindítja a játékot.
+            </p>
+            {session?.members && (
+              <PlayerList
+                members={session.members}
+                hostUid={session.createdBy}
+                sessionId={sessionId}
+                gameId={gameId as string}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // ── No session yet — show creator (host) or join options ───────────────────
@@ -607,11 +650,8 @@ export default function PlayPage() {
                         )}
                         {isHost && (
                           <button onClick={nextStation} className="btn-primary w-full flex items-center justify-center gap-2">
-                            {currentStep + 1 < stations.length ? (
-                              <>Következő állomás <ChevronRight size={16} /></>
-                            ) : (
-                              <>Befejezés <Trophy size={16} /></>
-                            )}
+                            {countdown !== null ? `Következő (${countdown}s)` : (currentStep + 1 < stations.length ? "Következő állomás" : "Befejezés")}
+                            {countdown !== null ? <ChevronRight size={16} /> : (currentStep + 1 < stations.length ? <ChevronRight size={16} /> : <Trophy size={16} />)}
                           </button>
                         )}
                         {!isHost && (
