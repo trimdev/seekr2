@@ -206,7 +206,8 @@ export default function PlayPage() {
 
   // ── Solution check (host only) ─────────────────────────────────────────────
   const checkSolution = useCallback(async () => {
-    if (!isHost || !station) return;
+    // Block guests (in a session but not the host). Solo players have no session so always allowed.
+    if ((sessionId && !isHost) || !station) return;
     const sol = getText(station.solution).trim().toLowerCase();
     let ok = false;
 
@@ -240,20 +241,6 @@ export default function PlayPage() {
     }
   }, [isHost, station, stationType, inputValue, lockDigits, orderItems, matchSelections, qrValue, sessionId, effectiveUid, gameId, currentStep]);
 
-  // Auto-advance after correct answer (host only)
-  useEffect(() => {
-    if (!solved || !isHost) return;
-    setCountdown(4);
-    const interval = setInterval(() => {
-      setCountdown((c) => {
-        if (c === null || c <= 1) { clearInterval(interval); return null; }
-        return c - 1;
-      });
-    }, 1000);
-    const timer = setTimeout(() => { nextStation(); }, 4000);
-    return () => { clearInterval(interval); clearTimeout(timer); setCountdown(null); };
-  }, [solved, isHost]);
-
   // ── Advance to next station (host only) ────────────────────────────────────
   const nextStation = useCallback(async () => {
     const next = currentStep + 1;
@@ -282,6 +269,27 @@ export default function PlayPage() {
       await saveProgress(user.uid, gameId as string, next);
     }
   }, [currentStep, stations.length, sessionId, gameId, router, user]);
+
+  // Keep a ref so the auto-advance timer always calls the latest nextStation
+  // regardless of which render's closure it was created in.
+  const nextStationRef = useRef(nextStation);
+  useEffect(() => { nextStationRef.current = nextStation; }, [nextStation]);
+
+  // Auto-advance after correct answer (host only) — declared AFTER nextStation
+  // so the ref is always fresh when the timeout fires.
+  useEffect(() => {
+    // Fire for session hosts AND solo players; guests always wait for host
+    if (!solved || (!isHost && !!sessionId)) return;
+    setCountdown(4);
+    const interval = setInterval(() => {
+      setCountdown((c) => {
+        if (c === null || c <= 1) { clearInterval(interval); return null; }
+        return c - 1;
+      });
+    }, 1000);
+    const timer = setTimeout(() => { nextStationRef.current(); }, 4000);
+    return () => { clearInterval(interval); clearTimeout(timer); setCountdown(null); };
+  }, [solved, isHost]);
 
   // ── Host controls ──────────────────────────────────────────────────────────
   const revealHint = async () => {
@@ -498,6 +506,9 @@ export default function PlayPage() {
   }
 
   // ── Main Game Screen ───────────────────────────────────────────────────────
+  // canAct: true for session hosts AND solo players (no session).
+  // Guests in a session are read-only.
+  const canAct = isHost || !sessionId;
   const progress = stations.length ? ((currentStep) / stations.length) * 100 : 0;
   const sessionStatus = session?.status ?? "active";
 
@@ -648,13 +659,13 @@ export default function PlayPage() {
                             {getText(station.story)}
                           </p>
                         )}
-                        {isHost && (
+                        {canAct && (
                           <button onClick={nextStation} className="btn-primary w-full flex items-center justify-center gap-2">
                             {countdown !== null ? `Következő (${countdown}s)` : (currentStep + 1 < stations.length ? "Következő állomás" : "Befejezés")}
                             {countdown !== null ? <ChevronRight size={16} /> : (currentStep + 1 < stations.length ? <ChevronRight size={16} /> : <Trophy size={16} />)}
                           </button>
                         )}
-                        {!isHost && (
+                        {!canAct && (
                           <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                             Várakozás a csapatvezetőre…
                           </p>
@@ -668,8 +679,8 @@ export default function PlayPage() {
                             value={inputValue}
                             onChange={(v) => { setInputValue(v); broadcastInput({ textValue: v }); }}
                             onSubmit={checkSolution}
-                            disabled={!isHost}
-                            isHost={isHost}
+                            disabled={!canAct}
+                            isHost={canAct}
                             correct={inputCorrect}
                           />
                         )}
@@ -679,7 +690,7 @@ export default function PlayPage() {
                             setDigits={(d) => { setLockDigits(d); broadcastInput({ lockDigits: d }); }}
                             onUnlock={checkSolution}
                             solution={getText(station.solution)}
-                            disabled={!isHost}
+                            disabled={!canAct}
                           />
                         )}
                         {stationType === "puzzle_order" && (
@@ -687,9 +698,9 @@ export default function PlayPage() {
                             <OrderPuzzle
                               items={orderItems}
                               setItems={(items) => { setOrderItems(items); broadcastInput({ orderItems: items }); }}
-                              disabled={!isHost}
+                              disabled={!canAct}
                             />
-                            {isHost && (
+                            {canAct && (
                               <button onClick={checkSolution} className="btn-primary w-full">
                                 Ellenőrzés
                               </button>
@@ -702,9 +713,9 @@ export default function PlayPage() {
                               pairs={station.puzzleMatch ?? []}
                               selections={matchSelections}
                               setSelections={(s) => { setMatchSelections(s); broadcastInput({ matchSelections: s }); }}
-                              disabled={!isHost}
+                              disabled={!canAct}
                             />
-                            {isHost && (
+                            {canAct && (
                               <button onClick={checkSolution} className="btn-primary w-full">
                                 Ellenőrzés
                               </button>
@@ -716,12 +727,12 @@ export default function PlayPage() {
                             value={qrValue}
                             onChange={(v) => { setQrValue(v); broadcastInput({ qrValue: v }); }}
                             onSubmit={checkSolution}
-                            disabled={!isHost}
-                            isHost={isHost}
+                            disabled={!canAct}
+                            isHost={canAct}
                           />
                         )}
 
-                        {!isHost && (
+                        {!canAct && (
                           <p className="text-xs text-center py-2" style={{ color: "var(--text-faint)" }}>
                             👁 Néző — csak a csapatvezető adhatja be a választ
                           </p>
