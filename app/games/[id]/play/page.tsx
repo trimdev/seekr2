@@ -275,6 +275,12 @@ export default function PlayPage() {
   const nextStationRef = useRef(nextStation);
   useEffect(() => { nextStationRef.current = nextStation; }, [nextStation]);
 
+  // Same ref pattern for checkSolution — LockPuzzle calls onUnlock via a
+  // setTimeout(600ms) that captures the closure at render time, so we need
+  // the ref to always point to the latest checkSolution with fresh lockDigits.
+  const checkSolutionRef = useRef(checkSolution);
+  useEffect(() => { checkSolutionRef.current = checkSolution; }, [checkSolution]);
+
   // Auto-advance after correct answer (host only) — declared AFTER nextStation
   // so the ref is always fresh when the timeout fires.
   useEffect(() => {
@@ -688,7 +694,7 @@ export default function PlayPage() {
                           <LockPuzzle
                             digits={lockDigits}
                             setDigits={(d) => { setLockDigits(d); broadcastInput({ lockDigits: d }); }}
-                            onUnlock={checkSolution}
+                            onUnlock={() => checkSolutionRef.current()}
                             solution={getText(station.solution)}
                             disabled={!canAct}
                           />
