@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Camera, Keyboard } from "lucide-react";
 
 interface QRPuzzleProps {
@@ -16,6 +16,10 @@ export function QRPuzzle({ value, onChange, onSubmit, disabled, isHost }: QRPuzz
   const [scanning, setScanning] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  // Ref so the scan loop always calls the latest onSubmit (avoids stale closure
+  // when onChange + onSubmit fire in the same animation frame tick).
+  const onSubmitRef = useRef(onSubmit);
+  useEffect(() => { onSubmitRef.current = onSubmit; }, [onSubmit]);
 
   const startScan = useCallback(async () => {
     if (!("BarcodeDetector" in window)) {
@@ -41,7 +45,7 @@ export function QRPuzzle({ value, onChange, onSubmit, disabled, isHost }: QRPuzz
           const raw = barcodes[0].rawValue;
           onChange(raw);
           stopScan();
-          if (isHost) onSubmit();
+          if (isHost) onSubmitRef.current();
         } else {
           requestAnimationFrame(tick);
         }
@@ -50,7 +54,7 @@ export function QRPuzzle({ value, onChange, onSubmit, disabled, isHost }: QRPuzz
     } catch {
       setMode("text");
     }
-  }, [isHost, onChange, onSubmit]);
+  }, [isHost, onChange]);
 
   const stopScan = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());

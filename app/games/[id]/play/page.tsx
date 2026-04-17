@@ -684,7 +684,7 @@ export default function PlayPage() {
                           <TextPuzzle
                             value={inputValue}
                             onChange={(v) => { setInputValue(v); broadcastInput({ textValue: v }); }}
-                            onSubmit={checkSolution}
+                            onSubmit={() => checkSolutionRef.current()}
                             disabled={!canAct}
                             isHost={canAct}
                             correct={inputCorrect}
@@ -707,7 +707,7 @@ export default function PlayPage() {
                               disabled={!canAct}
                             />
                             {canAct && (
-                              <button onClick={checkSolution} className="btn-primary w-full">
+                              <button onClick={() => checkSolutionRef.current()} className="btn-primary w-full">
                                 Ellenőrzés
                               </button>
                             )}
@@ -722,7 +722,7 @@ export default function PlayPage() {
                               disabled={!canAct}
                             />
                             {canAct && (
-                              <button onClick={checkSolution} className="btn-primary w-full">
+                              <button onClick={() => checkSolutionRef.current()} className="btn-primary w-full">
                                 Ellenőrzés
                               </button>
                             )}
@@ -732,7 +732,7 @@ export default function PlayPage() {
                           <QRPuzzle
                             value={qrValue}
                             onChange={(v) => { setQrValue(v); broadcastInput({ qrValue: v }); }}
-                            onSubmit={checkSolution}
+                            onSubmit={() => checkSolutionRef.current()}
                             disabled={!canAct}
                             isHost={canAct}
                           />
