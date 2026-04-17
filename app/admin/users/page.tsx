@@ -115,8 +115,14 @@ export default function AdminUsersPage() {
                         style={{ borderBottom: "1px solid var(--border-dim)" }}
                         className="transition-colors hover:bg-white/[0.02]"
                       >
-                        <td className="px-4 py-3 font-medium" style={{ color: "var(--text-primary)" }}>
-                          {user.name ?? "—"}
+                        <td className="px-4 py-3 font-medium">
+                          <Link
+                            href={`/admin/users/${user.id}`}
+                            className="hover:underline"
+                            style={{ color: "var(--cyan)" }}
+                          >
+                            {user.name ?? "—"}
+                          </Link>
                         </td>
                         <td className="px-4 py-3" style={{ color: "var(--text-muted)" }}>
                           {user.email ?? "—"}
@@ -139,7 +145,14 @@ export default function AdminUsersPage() {
                             <span className="text-xs" style={{ color: "var(--text-faint)" }}>—</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-right flex items-center justify-end gap-2">
+                          <Link
+                            href={`/admin/users/${user.id}`}
+                            className="btn-ghost text-xs px-3 py-1.5 min-h-0 inline-flex items-center gap-1"
+                            style={{ color: "var(--text-muted)", borderColor: "var(--border-dim)" }}
+                          >
+                            Kezelés
+                          </Link>
                           <button
                             onClick={() => handleToggleAdmin(user)}
                             disabled={toggling === user.id}
