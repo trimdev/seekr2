@@ -55,7 +55,7 @@ export default function PlayPage() {
   // ── game play state ────────────────────────────────────────────────────────
   const [currentStep, setCurrentStep] = useState(0);
   const [solved, setSolved] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
+  const [reviewStep, setReviewStep] = useState<number | null>(null);
   const [hintOpen, setHintOpen] = useState(false);
   const [nextHintOpen, setNextHintOpen] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
@@ -253,7 +253,7 @@ export default function PlayPage() {
     }
     setCurrentStep(next);
     setSolved(false);
-    setCountdown(null);
+    setReviewStep(null);
     setHintOpen(false);
     setNextHintOpen(false);
     setConfetti(false);
@@ -270,32 +270,11 @@ export default function PlayPage() {
     }
   }, [currentStep, stations.length, sessionId, gameId, router, user]);
 
-  // Keep a ref so the auto-advance timer always calls the latest nextStation
-  // regardless of which render's closure it was created in.
-  const nextStationRef = useRef(nextStation);
-  useEffect(() => { nextStationRef.current = nextStation; }, [nextStation]);
-
   // Same ref pattern for checkSolution — LockPuzzle calls onUnlock via a
   // setTimeout(600ms) that captures the closure at render time, so we need
   // the ref to always point to the latest checkSolution with fresh lockDigits.
   const checkSolutionRef = useRef(checkSolution);
   useEffect(() => { checkSolutionRef.current = checkSolution; }, [checkSolution]);
-
-  // Auto-advance after correct answer (host only) — declared AFTER nextStation
-  // so the ref is always fresh when the timeout fires.
-  useEffect(() => {
-    // Fire for session hosts AND solo players; guests always wait for host
-    if (!solved || (!isHost && !!sessionId)) return;
-    setCountdown(4);
-    const interval = setInterval(() => {
-      setCountdown((c) => {
-        if (c === null || c <= 1) { clearInterval(interval); return null; }
-        return c - 1;
-      });
-    }, 1000);
-    const timer = setTimeout(() => { nextStationRef.current(); }, 4000);
-    return () => { clearInterval(interval); clearTimeout(timer); setCountdown(null); };
-  }, [solved, isHost]);
 
   // ── Host controls ──────────────────────────────────────────────────────────
   const revealHint = async () => {
@@ -647,8 +626,72 @@ export default function PlayPage() {
 
                   {/* Solved state */}
                   <AnimatePresence>
-                    {solved ? (
+                    {reviewStep !== null ? (
+                      /* ── Story review panel ── */
                       <motion.div
+                        key={`review-${reviewStep}`}
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -16 }}
+                        className="glass rounded-2xl p-5 mb-4"
+                        style={{ borderColor: "rgba(0,212,255,0.25)" }}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--cyan)" }}>
+                            Visszatekintés · {reviewStep + 1}. állomás
+                          </p>
+                          <button
+                            onClick={() => setReviewStep(null)}
+                            className="text-xs px-2 py-1 rounded-lg"
+                            style={{ color: "var(--text-muted)", background: "rgba(255,255,255,0.05)" }}
+                          >
+                            ✕ Bezár
+                          </button>
+                        </div>
+                        <p
+                          className="font-bold text-sm mb-3"
+                          style={{ color: "var(--text-primary)", fontFamily: "var(--font-cinzel), serif" }}
+                        >
+                          {getText(stations[reviewStep]?.title)}
+                        </p>
+                        {stations[reviewStep]?.story ? (
+                          <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                            {getText(stations[reviewStep].story)}
+                          </p>
+                        ) : (
+                          <p className="text-xs italic" style={{ color: "var(--text-faint)" }}>
+                            Nincs köztes történet ehhez az állomáshoz.
+                          </p>
+                        )}
+                        <div className="flex gap-2 mt-4">
+                          {reviewStep > 0 && (
+                            <button
+                              onClick={() => setReviewStep(reviewStep - 1)}
+                              className="btn-ghost text-xs px-3 py-2 min-h-0 flex items-center gap-1 flex-1 justify-center"
+                            >
+                              <ArrowLeft size={13} /> Előző
+                            </button>
+                          )}
+                          {reviewStep < (solved ? currentStep : currentStep - 1) && (
+                            <button
+                              onClick={() => setReviewStep(reviewStep + 1)}
+                              className="btn-ghost text-xs px-3 py-2 min-h-0 flex items-center gap-1 flex-1 justify-center"
+                              style={{ color: "var(--cyan)", borderColor: "rgba(0,212,255,0.25)" }}
+                            >
+                              Következő <ChevronRight size={13} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setReviewStep(null)}
+                            className="btn-primary text-xs px-3 py-2 min-h-0 flex-1"
+                          >
+                            Folytatás
+                          </button>
+                        </div>
+                      </motion.div>
+                    ) : solved ? (
+                      <motion.div
+                        key="solved"
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         className="glass-cyan rounded-2xl p-5 mb-4 text-center"
@@ -665,17 +708,26 @@ export default function PlayPage() {
                             {getText(station.story)}
                           </p>
                         )}
-                        {canAct && (
-                          <button onClick={nextStation} className="btn-primary w-full flex items-center justify-center gap-2">
-                            {countdown !== null ? `Következő (${countdown}s)` : (currentStep + 1 < stations.length ? "Következő állomás" : "Befejezés")}
-                            {countdown !== null ? <ChevronRight size={16} /> : (currentStep + 1 < stations.length ? <ChevronRight size={16} /> : <Trophy size={16} />)}
-                          </button>
-                        )}
-                        {!canAct && (
-                          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                            Várakozás a csapatvezetőre…
-                          </p>
-                        )}
+                        <div className="flex flex-col gap-2">
+                          {currentStep > 0 && (
+                            <button
+                              onClick={() => setReviewStep(currentStep - 1)}
+                              className="btn-ghost w-full flex items-center justify-center gap-2 text-sm"
+                            >
+                              <ArrowLeft size={15} /> Előző sztori
+                            </button>
+                          )}
+                          {canAct ? (
+                            <button onClick={nextStation} className="btn-primary w-full flex items-center justify-center gap-2">
+                              {currentStep + 1 < stations.length ? "Következő állomás" : "Befejezés"}
+                              {currentStep + 1 < stations.length ? <ChevronRight size={16} /> : <Trophy size={16} />}
+                            </button>
+                          ) : (
+                            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                              Várakozás a csapatvezetőre…
+                            </p>
+                          )}
+                        </div>
                       </motion.div>
                     ) : (
                       <motion.div key="puzzle" className="flex flex-col gap-4">
@@ -742,6 +794,17 @@ export default function PlayPage() {
                           <p className="text-xs text-center py-2" style={{ color: "var(--text-faint)" }}>
                             👁 Néző — csak a csapatvezető adhatja be a választ
                           </p>
+                        )}
+
+                        {/* Back to previous story */}
+                        {currentStep > 0 && (
+                          <button
+                            onClick={() => setReviewStep(currentStep - 1)}
+                            className="btn-ghost w-full flex items-center justify-center gap-2 text-sm mt-1"
+                            style={{ color: "var(--text-muted)", borderColor: "var(--border-dim)" }}
+                          >
+                            <ArrowLeft size={14} /> Előző sztori
+                          </button>
                         )}
                       </motion.div>
                     )}
